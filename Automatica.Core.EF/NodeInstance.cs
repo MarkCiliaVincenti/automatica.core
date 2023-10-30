@@ -10,15 +10,18 @@ namespace Automatica.Core.EF.Models
 {
     public enum NodeInstanceState
     {
-        New,
-        Saved,
-        Loaded,
-        Initialized,
-        InUse,
-        OutOfDatapoits,
-        UnknownError,
-        Unloaded,
-        Unknown
+        New = 0,
+        Saved = 1,
+        Loaded = 2,
+        Initialized = 3,
+        InUse = 4,
+        OutOfDataPoints = 5,
+        UnknownError = 6,
+        Unloaded = 7,
+        Unknown = 8,
+        Remote = 9,
+        OutOfSatelliteLicenses = 10,
+        Disabled = 11
     }
     public partial class NodeInstance : TypedObject
     {
@@ -53,6 +56,9 @@ namespace Automatica.Core.EF.Models
         [NotMapped]
         public NodeInstanceState State { get; set; }
 
+        [NotMapped]
+        public string Error { get; set; }
+
         public void SetProperty(string propertyKey, object value)
         {
             var prop = PropertyInstance.SingleOrDefault(a => a.This2PropertyTemplateNavigation.Key == propertyKey);
@@ -67,7 +73,7 @@ namespace Automatica.Core.EF.Models
         {
             foreach (var prop in instance.PropertyInstance)
             {
-                if (prop.This2PropertyTemplateNavigation.Key == propertyKey)
+                if (prop.This2PropertyTemplateNavigation != null && prop.This2PropertyTemplateNavigation.Key == propertyKey)
                 {
                     return prop;
                 }
@@ -135,6 +141,18 @@ namespace Automatica.Core.EF.Models
             }
 
             return prop.ValueString;
+        }
+
+        public bool? GetPropertyValueBool(string property)
+        {
+            var prop = GetProperty(property);
+
+            if (prop == null)
+            {
+                throw new ArgumentException(nameof(property));
+            }
+
+            return prop.ValueBool;
         }
     }
 }

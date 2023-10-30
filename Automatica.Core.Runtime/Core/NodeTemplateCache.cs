@@ -19,9 +19,12 @@ namespace Automatica.Core.Runtime.Core
 
         private readonly IDictionary<Guid, IList<NodeTemplate>> _neededTemplateKeyDictionary =
             new Dictionary<Guid, IList<NodeTemplate>>();
-        
-        private readonly IDictionary<Guid, NodeTemplate> _templatesKeyDictionary =
+
+        private readonly IDictionary<Guid, NodeTemplate> _templateIdDictionary =
             new Dictionary<Guid, NodeTemplate>();
+        
+        private readonly IDictionary<string, NodeTemplate> _templatesKeyDictionary =
+            new Dictionary<string, NodeTemplate>();
 
         private readonly IDictionary<Guid, IList<NodeTemplate>> _defaultTemplateItemsKeyDictionary =
             new Dictionary<Guid, IList<NodeTemplate>>();
@@ -46,9 +49,14 @@ namespace Automatica.Core.Runtime.Core
 
             foreach (var nodeTemplate in x)
             {
-                if (!_templatesKeyDictionary.ContainsKey(nodeTemplate.ObjId))
+                if (!_templateIdDictionary.ContainsKey(nodeTemplate.ObjId))
                 {
-                    _templatesKeyDictionary.Add(nodeTemplate.ObjId, nodeTemplate);
+                    _templateIdDictionary.Add(nodeTemplate.ObjId, nodeTemplate);
+                }
+
+                if (!_templatesKeyDictionary.ContainsKey(nodeTemplate.Key))
+                {
+                    _templatesKeyDictionary.Add(nodeTemplate.Key, nodeTemplate);
                 }
             }
             return x;
@@ -71,7 +79,8 @@ namespace Automatica.Core.Runtime.Core
 
             if (value.DefaultCreated)
             {
-                _defaultTemplateItemsKeyDictionary[value.NeedsInterface2InterfacesType].Add(value);
+                if (_defaultTemplateItemsKeyDictionary[value.NeedsInterface2InterfacesType].All(a => a.ObjId != value.ObjId))
+                    _defaultTemplateItemsKeyDictionary[value.NeedsInterface2InterfacesType].Add(value);
             }
 
             var factory = _driverFactoryStore.Get(value.FactoryReference);
@@ -96,8 +105,17 @@ namespace Automatica.Core.Runtime.Core
 
         public NodeTemplate GetByKey(string key)
         {
-            var id = Guid.Parse(key);
-            return GetByKey(id);
+            if (_templatesKeyDictionary.Count == 0)
+            {
+                InitCache();
+            }
+
+            if (_templatesKeyDictionary.ContainsKey(key))
+            {
+                return _templatesKeyDictionary[key];
+            }
+
+            return null;
         }
 
         public NodeTemplate GetByKey(Guid key)
@@ -107,9 +125,9 @@ namespace Automatica.Core.Runtime.Core
                 InitCache();
             }
 
-            if(_templatesKeyDictionary.ContainsKey(key))
+            if(_templateIdDictionary.ContainsKey(key))
             {
-                return _templatesKeyDictionary[key];
+                return _templateIdDictionary[key];
             }
 
             return null;

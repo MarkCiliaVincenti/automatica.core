@@ -3,17 +3,21 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Automatica.Core.Base.Cache;
 using Automatica.Core.EF.Models;
-using Automatica.Core.Rule;
+using Automatica.Core.Logic;
 using Automatica.Core.Runtime.Abstraction.Plugins.Logic;
 using Automatica.Core.Runtime.Exceptions;
 
 namespace Automatica.Core.Runtime.Core.Plugins.Logics
 {
-    internal class LogicStore : StoreBase<RuleInstance, IRule>, ILogicStore
+    internal class LogicStore : StoreBase<RuleInstance, ILogic>, ILogicStore
     {
-        private readonly IDictionary<Guid, IRule> _ruleIdDictionary = new ConcurrentDictionary<Guid, IRule>();
+        private readonly IDictionary<Guid, ILogic> _ruleIdDictionary = new ConcurrentDictionary<Guid, ILogic>();
 
-        public override void Add(RuleInstance key, IRule value)
+        public LogicStore()
+        {
+            
+        }
+        public override void Add(RuleInstance key, ILogic value)
         {
             if (!_ruleIdDictionary.ContainsKey(key.ObjId))
             {
@@ -29,13 +33,19 @@ namespace Automatica.Core.Runtime.Core.Plugins.Logics
             _ruleIdDictionary.Clear();
         }
 
-        public object GetDataForRuleInstance(Guid id)
+        public object? GetDataForRuleInstance(Guid id)
         {
-            if (_ruleIdDictionary.ContainsKey(id))
+            if (_ruleIdDictionary.TryGetValue(id, out var value))
             {
-                return _ruleIdDictionary[id].GetDataForVisu();
+                return value.GetDataForVisu();
             }
+
             throw new RuleNotFoundException();
+        }
+
+        public void UpdateInstance(RuleInstance key, ILogic value)
+        {
+            Update(key, value);
         }
     }
 }

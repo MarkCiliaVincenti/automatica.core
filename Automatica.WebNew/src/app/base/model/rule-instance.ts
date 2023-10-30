@@ -25,6 +25,10 @@ import { VisuObjectType } from "../visu/base-mobile-component"
 import { VirtualIsFavoriteVisuPropertyInstance } from "./virtual-props/virtual-is-fav-visu-property-instance"
 import { L10nTranslationService } from "angular-l10n"
 import { EventEmitter } from "@angular/core"
+import { VirtualObjIdPropertyInstance } from "./virtual-props/virtual-objid-property-instance"
+import { ITimestampModifiedTrackingModel } from "./ITimestampModifiedTrackingModel"
+import { VirtualCreatedAtPropertyInstance } from "./virtual-props/virtual-created-at-property-instance"
+import { VirtualModifedAtPropertyInstance } from "./virtual-props/virtual-modified-at-property-instance"
 
 function sortBySortOrder(a: RuleInterfaceInstance, b: RuleInterfaceInstance) {
     if (!a.Template) {
@@ -35,7 +39,7 @@ function sortBySortOrder(a: RuleInterfaceInstance, b: RuleInterfaceInstance) {
 
 
 @Model()
-export class RuleInstance extends BaseModel implements VisuObjectType, IKey, IDescriptionModel, INameModel, IPropertyModel, IAreaInstanceModel, ICategoryInstanceModel {
+export class RuleInstance extends BaseModel implements VisuObjectType, IKey, IDescriptionModel, INameModel, IPropertyModel, IAreaInstanceModel, ICategoryInstanceModel, ITimestampModifiedTrackingModel {
 
     public static KeyPrefix: string = "Rule";
 
@@ -118,9 +122,19 @@ export class RuleInstance extends BaseModel implements VisuObjectType, IKey, IDe
     @JsonProperty()
     This2UserGroup: string;
 
+    @JsonProperty()
+    CreatedAt: Date;
+
+    @JsonProperty()
+    ModifiedAt: Date;
+
     Properties: VirtualPropertyInstance[] = [];
 
     public get DisplayName(): string {
+        return this.Name;
+    }
+
+    public get VisuDisplayName(): string {
         return this.Name;
     }
 
@@ -174,6 +188,10 @@ export class RuleInstance extends BaseModel implements VisuObjectType, IKey, IDe
     private addVirtualProperties() {
         this.Properties.push(new VirtualNamePropertyInstance(this));
         this.Properties.push(new VirtualDescriptionPropertyInstance(this));
+        this.Properties.push(new VirtualObjIdPropertyInstance(this));
+
+        this.Properties.push(new VirtualCreatedAtPropertyInstance(this));
+        this.Properties.push(new VirtualModifedAtPropertyInstance(this));
 
         this.Properties.push(new VirtualUseInVisuPropertyInstance(this));
         this.Properties.push(new VirtualAreaPropertyInstance(this));
@@ -213,7 +231,7 @@ export class RuleInstance extends BaseModel implements VisuObjectType, IKey, IDe
     get Inputs(): RuleInterfaceInstance[] {
         const interfaces = new Array<RuleInterfaceInstance>();
         this.Interfaces.forEach(element => {
-            if (element.Template.InterfaceDirection.Key === "I") {
+            if (element.Template.InterfaceDirection.Key && element.Template.InterfaceDirection.Key === "I") {
                 interfaces.push(element);
             }
         });
@@ -224,7 +242,7 @@ export class RuleInstance extends BaseModel implements VisuObjectType, IKey, IDe
     get Outputs(): RuleInterfaceInstance[] {
         const interfaces = new Array<RuleInterfaceInstance>();
         this.Interfaces.forEach(element => {
-            if (element.Template.InterfaceDirection.Key === "O") {
+            if (element.Template.InterfaceDirection.Key && element.Template.InterfaceDirection.Key === "O") {
                 interfaces.push(element);
             }
         });

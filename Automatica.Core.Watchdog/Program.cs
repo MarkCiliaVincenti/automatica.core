@@ -8,7 +8,7 @@ using System.IO;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using Automatica.Core.Internals.Logger;
+using Automatica.Core.Logging;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
 using Microsoft.Extensions.Configuration;
 
@@ -34,7 +34,7 @@ namespace Automatica.Core.Watchdog
               .Filter.ByExcluding(Matching.FromSource("Microsoft"))
               .CreateLogger();
 
-            _logger = CoreLoggerFactory.GetLogger(config, "Watchdog");
+            _logger = CoreLoggerFactory.GetLogger(config,null, "Watchdog");
             _logger.LogInformation($"Starting WatchDog...Version {ServerInfo.GetServerVersion()}, Datetime {ServerInfo.StartupTime}");
 
             var fi = new FileInfo(Assembly.GetEntryAssembly().Location);
@@ -84,22 +84,34 @@ namespace Automatica.Core.Watchdog
             Process process = null;
             try
             {
-
+                int restartCount = 0;
                 while (true)
                 {
                     _logger.LogInformation($"Starting {appName}");
-                    
+
+                    var startTime = DateTime.Now;
                     process = Process.Start(processInfo);
                     process!.ErrorDataReceived += ProcessOnErrorDataReceived;
 
                     process.WaitForExit();
+                    restartCount++;
+
+                    var diffNow = DateTime.Now - startTime;
+                    if (diffNow.TotalMinutes >= 30)
+                    {
+                        restartCount = 0;
+                    }
 
 
                     process.ErrorDataReceived -= ProcessOnErrorDataReceived;
                     var exitCode = process.ExitCode;
                     _logger.LogInformation($"{appName} stopped with exit code {exitCode}");
 
-                    if (PrepareUpdateIfExists())
+                    if (exitCode == ServerInfo.ExitCodeRestart)
+                    {
+                        _logger.LogInformation($"Core system requested a normal restart....");
+                    }
+                    else if (PrepareUpdateIfExists() || process.ExitCode == ServerInfo.ExitCodeUpdateInstallDocker && restartCount >= 10)
                     {
                         Environment.Exit(2); //restart
                         return;

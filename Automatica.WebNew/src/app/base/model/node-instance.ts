@@ -23,12 +23,17 @@ import { VirtualGenericPropertyInstance } from "./virtual-props/virtual-generic-
 import { NodeDataTypeEnum } from "./node-data-type";
 import { PropertyTemplateType, EnumExtendedPropertyTemplate } from "./property-template";
 import { VirtualGenericTrendingPropertyInstance } from "./virtual-props/node-instance/virtual-generic-trending-property";
-import { VirtualSlavePropertyInstance } from "./virtual-props/virtual-slave-property-instance";
 import { INodeInstance } from "./INodeInstance";
 import { VirtualObjIdPropertyInstance } from "./virtual-props/virtual-objid-property-instance";
 import { CategoryInstance } from "./categories";
 import { AreaInstance } from "./areas";
 import { VirtualIsFavoriteVisuPropertyInstance } from "./virtual-props/virtual-is-fav-visu-property-instance";
+import { VirtualSatellitePropertyInstance } from "./virtual-props/virtual-satellite-property-instance";
+import { VirtualDisabledPropertyInstance } from "./virtual-props/virtual-disabled-property-instance";
+import { VirtualOnlyWriteIfChangedPropertyInstance } from "./virtual-props/virtual-only-write-if-changed-property-instance";
+import { VirtualCreatedAtPropertyInstance } from "./virtual-props/virtual-created-at-property-instance";
+import { VirtualModifedAtPropertyInstance } from "./virtual-props/virtual-modified-at-property-instance";
+import { ITimestampModifiedTrackingModel } from "./ITimestampModifiedTrackingModel";
 
 class NodeInstanceMetaHelper {
     private static pad(num, size) {
@@ -52,8 +57,11 @@ class NodeInstanceMetaHelper {
                 let propValue = this.getValueForKey(key, value, nodeInstance);
                 if (typeof propValue === "number") {
                     propValue = propValue.toString();
-                    const padSize = split.length >= 3 ? split[2] : 2;
-                    propValue = this.pad(propValue, padSize);
+
+                    if (split.length >= 3) {
+                        const padSize = split.length >= 3 ? split[2] : 2;
+                        propValue = this.pad(propValue, padSize);
+                    }
 
                     addName += propValue;
                 } else {
@@ -83,26 +91,29 @@ class NodeInstanceMetaHelper {
 }
 
 export enum NodeInstanceState {
-    New,
-    Saved,
-    Loaded,
-    Initialized,
-    InUse,
-    OutOfDatapoits,
-    UnknownError,
-    Unloaded,
-    Unknown
+    New = 0,
+    Saved = 1,
+    Loaded = 2,
+    Initialized = 3,
+    InUse = 4,
+    OutOfDataPoints = 5,
+    UnknownError = 6,
+    Unloaded = 7,
+    Unknown = 8,
+    Remote = 9,
+    OutOfSatelliteLicenses = 10
 }
 
 export enum TrendingTypes {
     Average = 0,
     Raw = 1,
     Max = 2,
-    Min = 3
+    Min = 3,
+    OnChange = 4
 }
 
 @Model()
-export class NodeInstance extends BaseModel implements ITreeNode, INameModel, IDescriptionModel, IPropertyModel, IAreaInstanceModel, ICategoryInstanceModel, INodeInstance {
+export class NodeInstance extends BaseModel implements ITreeNode, INameModel, IDescriptionModel, IPropertyModel, IAreaInstanceModel, ICategoryInstanceModel, INodeInstance, ITimestampModifiedTrackingModel {
 
     @JsonProperty()
     ObjId: string;
@@ -118,6 +129,15 @@ export class NodeInstance extends BaseModel implements ITreeNode, INameModel, ID
 
     @JsonProperty()
     State: NodeInstanceState;
+    
+    @JsonProperty()
+    Error: string;
+
+    @JsonProperty()
+    CreatedAt: Date;
+
+    @JsonProperty()
+    ModifiedAt: Date;
 
     public get ParentId() {
         if (this.This2BoardInterface) {
@@ -149,6 +169,17 @@ export class NodeInstance extends BaseModel implements ITreeNode, INameModel, ID
         return this._name;
     }
 
+    public get VisuDisplayName() {
+        if (this.VisuName) {
+            return this.VisuName;
+        }
+        if (this._displayName) {
+            return `${this._displayName}`;
+        }
+        
+        return this._name;
+    }
+
     @JsonProperty()
     public get Name(): string {
         return this._name;
@@ -157,6 +188,22 @@ export class NodeInstance extends BaseModel implements ITreeNode, INameModel, ID
         this._name = v;
         this.notifyChange("Name");
         this.updateDisplayName();
+    }
+
+    public get FullName(): string {
+        var ret = void 0;
+
+        if (this.Parent instanceof NodeInstance) {
+            ret = this.Parent.FullName;
+            if(this.Name)
+                ret += ` → ${this.Name}`;
+        }
+
+        if(!ret) {
+            return "Root";
+        }
+
+        return ret;
     }
 
     private _Description: string;
@@ -189,7 +236,18 @@ export class NodeInstance extends BaseModel implements ITreeNode, INameModel, ID
     }
     public set Value(v: any) {
         this._Value = v;
+        this.notifyChange("Value");
     }
+
+
+    private _valueTimestamp: Date;
+    public get ValueTimestamp(): Date {
+        return this._valueTimestamp;
+    }
+    public set ValueTimestamp(v: Date) {
+        this._valueTimestamp = v;
+    }
+
 
 
     @JsonPropertyName("This2NodeTemplateNavigation")
@@ -205,6 +263,20 @@ export class NodeInstance extends BaseModel implements ITreeNode, INameModel, ID
     IsReadable: boolean;
     @JsonProperty()
     IsWriteable: boolean;
+    @JsonProperty()
+    IsDisabled: boolean;
+
+
+    public get IsAnyDisabled(): boolean {
+        if (this.IsDisabled) {
+            return true;
+        }
+        if (this.Parent instanceof NodeInstance) {
+            return this.Parent.IsAnyDisabled;
+        }
+        return false;
+    }
+
 
     @JsonProperty()
     UseInVisu: boolean;
@@ -234,7 +306,7 @@ export class NodeInstance extends BaseModel implements ITreeNode, INameModel, ID
     This2Slave: string;
 
     @JsonProperty()
-    Remanent: boolean;
+    IsRemanent: boolean;
 
 
     @JsonProperty()
@@ -260,6 +332,9 @@ export class NodeInstance extends BaseModel implements ITreeNode, INameModel, ID
 
     @JsonProperty()
     TrendingToCloud: boolean;
+
+    @JsonProperty()
+    WriteOnlyIfChanged: boolean;
 
     private _ValidationOk: boolean = true;
     public get ValidationOk(): boolean {
@@ -295,16 +370,33 @@ export class NodeInstance extends BaseModel implements ITreeNode, INameModel, ID
 
         this.Properties.push(new VirtualNamePropertyInstance(this));
         this.Properties.push(new VirtualDescriptionPropertyInstance(this));
+
+        this.Properties.push(new VirtualCreatedAtPropertyInstance(this));
+        this.Properties.push(new VirtualModifedAtPropertyInstance(this));
+
+        if (this.NodeTemplate) {
+            this.Properties.push(new VirtualGenericPropertyInstance("TYPE", 2, this, () => this.translationService.translate(this.NodeTemplate.Name), void 0, true, PropertyTemplateType.Text, "COMMON.CATEGORY.MISC"));
+        }
+
         this.Properties.push(new VirtualObjIdPropertyInstance(this));
 
         if (this.isDriverNode()) {
-            this.Properties.push(new VirtualSlavePropertyInstance(this));
+            this.Properties.push(new VirtualSatellitePropertyInstance(this));
         }
+
+        if (this.Parent) {
+            this.Properties.push(new VirtualDisabledPropertyInstance(this));
+        }
+
 
         if (this.NodeTemplate && this.NodeTemplate.This2NodeDataType > 0) {
             this.Properties.push(new VirtualReadablePropertyInstance(this));
-            this.Properties.push(new VirtualWriteablePropertyInstance(this));
-            this.Properties.push(new VirtualRemanentPropertyInstance(this));
+
+            if (!this.NodeTemplate.IsWriteableFixed) {
+                this.Properties.push(new VirtualWriteablePropertyInstance(this));
+                this.Properties.push(new VirtualRemanentPropertyInstance(this));
+                this.Properties.push(new VirtualOnlyWriteIfChangedPropertyInstance(this));
+            }
 
             this.Properties.push(new VirtualUseInVisuPropertyInstance(this));
             this.Properties.push(new VirtualAreaPropertyInstance(this));
@@ -324,6 +416,11 @@ export class NodeInstance extends BaseModel implements ITreeNode, INameModel, ID
             this.Properties.push(new VirtualGenericPropertyInstance("TRENDING", 10, this, () => this.Trending, (value) => this.Trending = value, false, PropertyTemplateType.Bool, "COMMON.CATEGORY.TRENDING"));
             this.Properties.push(new VirtualGenericTrendingPropertyInstance(this, "TRENDING_TYPE", 11, this, () => this.TrendingType, (value) => this.TrendingType = value, false, PropertyTemplateType.Enum, EnumExtendedPropertyTemplate.createFromEnum(TrendingTypes)));
             this.Properties.push(new VirtualGenericTrendingPropertyInstance(this, "TRENDING_INTERVAL", 12, this, () => this.TrendingInterval, (value) => this.TrendingInterval = value, false, PropertyTemplateType.Numeric));
+
+
+            this.Properties.push(new VirtualGenericPropertyInstance("VALUE", 1, this, () => this.Value, void 0, false, PropertyTemplateType.Text, "COMMON.CATEGORY.VALUE", false));
+            this.Properties.push(new VirtualGenericPropertyInstance("VALUE_TIMESTAMP", 2, this, () => this.ValueTimestamp, void 0, false, PropertyTemplateType.DateTime, "COMMON.CATEGORY.VALUE", false));
+
         }
 
         this.updateDisplayName();

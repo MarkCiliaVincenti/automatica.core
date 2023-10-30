@@ -2,13 +2,17 @@
   "ERROR": {
     "UNAUTHORISED": "Nicht berechtigt"
   },
-  "SERVER":{
+  "SERVER": {
     "RECORDERS": {
-      "HOSTED_GRAFANA": "Hosted Grafana Recorder"
+      "HOSTED_GRAFANA": "Hosted Grafana Recorder",
+      "HYPERSERIES": "Hyperseries"
     },
-    "SETTINGS": "Server Settings"
+    "SETTINGS": "Server Settings",
+    "REMOTE": "Remote Server Settings"
   },
   "COMMON": {
+    "LOG": "Log",
+    "LOGS": "Logs",
     "ADMIN": "Administration",
     "VISUALIZATION": "Visualization",
     "ADD": "Add",
@@ -25,6 +29,7 @@
     "SAVE": "Save",
     "NEW": "New",
     "COPY": "Copy",
+    "COPY_VALUE": "Copy value",
     "PASTE": "Paste",
     "DELETE": "Delete",
     "CONFIRM_DELETE": "Are you sure you want to delete this record?",
@@ -51,6 +56,7 @@
     "READ": "Read",
     "ETS_IMPORT": "ETS import",
     "SELECT_FILE": "Select file...",
+    "FILE": "File",
     "IMPORT_ETS_STRUCTURE": "Import ETS structure",
     "SAVE_BEFORE_CONTINUE": "You need to save your changes before starting this action",
     "SERVER_STARTING": "Automatica.Core Server starting...",
@@ -78,7 +84,53 @@
     "FAVORITES": "Favorites",
     "HOME": "Home",
     "RELOAD": "Reload",
-    "SLAVES": "Slaves (Preview)",
+    "SATELLITES": "Satellites",
+    "PASSWORD": "Password",
+    "IMPORT_NODES": "Import",
+    "IMPORT_NOTE": "Enter your password (if needed) prior selecting the file. After selecting the file press upload and the import will start",
+    "LIVE_LOGS": "Live logs",
+    "FILE_LOGS": "Datei logs",
+    "INFO": "Information",
+    "ZOOM": {
+      "IN":"Zoom in",
+      "OUT": "Zoom out",
+      "TO_VIEW": "Zoom default"
+    },
+    "NODEINSTANCE": {
+      "STATE": {
+        "UNKNOWN": {
+          "NAME": "Unknown",
+          "DESCRIPTION": "An unknown error occured during loading of the driver."
+        },
+        "UNLOADED": {
+          "NAME": "Unloaded",
+          "DESCRIPTION": "The node was not loaded."
+        },
+        "OUTOFLICENSE": {
+          "NAME": "License exceeded",
+          "DESCRIPTION": "You have reached the max amount of licensed datapoints."
+        },
+        "OUT_OF_SATELLITE_LICENSES": {
+          "NAME": "Satellite license exceeded",
+          "DESCRIPTION": "You have reached the max amount of statellites."
+        }
+      }
+    },
+    "CHART": {
+      "NAME": "Chart",
+      "RANGE_AGGREGATION": "Range/Aggregation",
+      "RANGE": "Range",
+      "AGGREGATION": "Aggregation",
+      "COUNT": "Count values",
+      "AGGREGATION_ENUM": {
+        "RAW": "Raw",
+        "HOURLY": "Hourly",
+        "DAILY": "Daily",
+        "WEEKLY": "Weekly",
+        "MONTHLY": "Monthly",
+        "YEARLY": "Yearly"
+      }
+    },
     "SWITCH": {
       "ON": "Turn on",
       "OFF": "Turn off"
@@ -118,7 +170,8 @@
       "SETTING": "Settings",
       "DISCOVERY": "Discovery",
       "TRENDING": "Trendings",
-      "SLAVE": "Slave"
+      "SATELLITE": "Satellite",
+      "VALUE": "Value"
     },
     "FACTOR": {
       "NAME": "Factor",
@@ -129,6 +182,10 @@
       "DESCRIPTION": "+= offset"
     },
     "PROPERTY": {
+      "TYPE": {
+        "NAME": "Typ",
+        "DESCRIPTION": ""
+      },
       "SERVERUID": {
         "NAME": "Server UID",
         "DESCRIPTION": ""
@@ -209,6 +266,10 @@
         "NAME": "Readable",
         "DESCRIPTION": ""
       },
+      "ISDISABLED": {
+        "NAME": "Disabled",
+        "DESCRIPTION": ""
+      },
       "ISWRITEABLE": {
         "NAME": "Writeable",
         "DESCRIPTION": ""
@@ -259,6 +320,10 @@
       },
       "USE_NAT": {
         "NAME": "Connect in NAT mode",
+        "DESCRIPTION": ""
+      },
+      "ENABLE_TUNNEL": {
+        "NAME": "Enable the connection via a tunnel",
         "DESCRIPTION": ""
       },
       "IMPORT": {
@@ -343,21 +408,21 @@
         "NAME": "ID",
         "DESCRIPTION": ""
       },
-      "SLAVE": {
-        "NAME": "Slave",
+      "SATELLITE": {
+        "NAME": "Satellite",
         "DESCRIPTION": "",
         "CLIENTID": {
-            "NAME":  "Client id"
+          "NAME": "Client id"
         },
         "CLIENTKEY": {
-            "NAME": "Client key"
+          "NAME": "Client key"
         }
       },
       "TIMEZONEOFFSET": {
         "NAME": "Timezone offset [h]",
         "DESCRIPTION": ""
       },
-      "TRENDINGRECORDERS":{
+      "TRENDINGRECORDERS": {
         "NAME": "Trending Destinations"
       },
       "HOSTEDGRAFANAAPIKEY": {
@@ -371,6 +436,52 @@
       },
       "REMANENT": {
         "NAME": "Remanent"
+      },
+      "ONLY_WRITE_IF_CHANGED": {
+        "NAME": "Write only if changed"
+      },
+      "VALUE": {
+        "NAME": "Value"
+      },
+      "VALUE_TIMESTAMP": {
+        "NAME": "Timestamp"
+      },
+      "REMOTEDOMAIN": {
+        "NAME": "Domain"
+      },
+      "REMOTEENABLED": {
+        "NAME": "Active"
+      },
+      "REMOTETOKEN": {
+        "NAME": "Token"
+      },
+      "HYPERSERIESUSER":{
+        "NAME": "User"
+      },
+      "HYPERSERIESHOST":{
+        "NAME": "Host"
+      },
+      "HYPERSERIESPASSWORD":{
+        "NAME": "Password"
+      },
+      "HYPERSERIESDATABASE":{
+        "NAME": "Database"
+      },
+      "HYPERSERIESPORT":{
+        "NAME": "Port"
+      },
+      "LANGUAGE":{
+        "NAME": "Language",
+        "GERMAN": "German",
+        "ENGLISH": "English"
+      },
+      "CREATED_AT": {
+        "NAME": "Created at",
+        "DESCRIPTION":""
+      },
+      "MODIFIED_AT": {
+        "NAME": "Modified at",
+        "DESCRIPTION":""
       }
     },
     "CATEGORY_INSTANCE": {
@@ -467,7 +578,7 @@
         "DESCRIPTION": ""
       }
     },
-    "SLAVE": {
+    "SATELLITE": {
       "CLIENTID": "Client id",
       "CLIENTKEY": "Client key",
       "CONNECTED": "Connected"
@@ -518,8 +629,10 @@
   },
   "SYSTEM": {
     "NAME": "System",
+    "LICENSE": "License",
     "UPDATE_AVAILABLE": "Update available",
-    "NO_UPDATE_AVAILABLE": "No update available"
+    "NO_UPDATE_AVAILABLE": "No update available",
+    "NO_LICENSE_FOUND": "No license found"
   },
   "LICENSE": {
     "NAME": "License"

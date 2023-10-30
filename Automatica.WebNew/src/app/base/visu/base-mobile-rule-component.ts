@@ -1,6 +1,6 @@
 import { BaseMobileComponent, VisuObjectType } from "./base-mobile-component";
 import { L10nTranslationService } from "angular-l10n";
-import { RuleInstanceVisuService } from "src/app/services/rule-visu.service";
+import { LogicInstanceVisuService } from "src/app/services/logic-visu.service";
 import { NotifyService } from "src/app/services/notify.service";
 import { DataHubService } from "../communication/hubs/data-hub.service";
 import { ConfigService } from "src/app/services/config.service";
@@ -21,7 +21,7 @@ export abstract class BaseMobileRuleComponent extends BaseMobileComponent {
         notify: NotifyService,
         translate: L10nTranslationService,
         configService: ConfigService,
-        public ruleInstanceVisuService: RuleInstanceVisuService,
+        public ruleInstanceVisuService: LogicInstanceVisuService,
         appService: AppService) {
         super(dataHubService, notify, translate, configService, appService);
     }
@@ -30,6 +30,17 @@ export abstract class BaseMobileRuleComponent extends BaseMobileComponent {
         if (this.ruleInstance && this.ruleInstance.Interfaces) {
             for (const interf of this.ruleInstance.Interfaces) {
                 if (interf.Template.InterfaceType === type) {
+                    return interf;
+                }
+            }
+        }
+        return void 0;
+    }
+
+    protected getInterfaceByKey(key: string) {
+        if (this.ruleInstance && this.ruleInstance.Interfaces) {
+            for (const interf of this.ruleInstance.Interfaces) {
+                if (interf.Template.Key === key) {
                     return interf;
                 }
             }

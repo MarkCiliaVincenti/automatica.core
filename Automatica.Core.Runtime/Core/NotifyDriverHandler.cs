@@ -79,6 +79,10 @@ namespace Automatica.Core.Runtime.Core
         {
             return ExecuteAction(node, _ => _?.Import(fileName));
         }
+        public Task<IList<NodeInstance>> Import(ImportConfig config)
+        {
+            return ExecuteAction(config.Node, _ => _?.Import(config));
+        }
 
         private Task<T> ExecuteAction<T>(NodeInstance node, Func<IDriverNode, Task<T>> action)
         {
@@ -89,7 +93,7 @@ namespace Automatica.Core.Runtime.Core
                 {
                     return action(driverNode);
                 }
-
+                _logger.LogError($"Could not find mapped driver instance for node {node.ObjId} {node.Name}");
                 return Task.FromResult(default(T));
             }
             catch (NodeNotFoundException)

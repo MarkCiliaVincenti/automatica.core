@@ -16,8 +16,9 @@ using User = Automatica.Core.Model.Models.User.User;
 using Automatica.Core.Base.Common;
 using Automatica.Core.Runtime.BoardTypes;
 using Automatica.Core.Runtime.BoardTypes.RaspberryPi;
-using Automatica.Core.Runtime.Recorder;
-using Docker.DotNet.Models;
+using System.Runtime.InteropServices;
+using Automatica.Core.Base;
+using Automatica.Core.Runtime.Recorder.Base;
 
 namespace Automatica.Core.Runtime.Database
 {
@@ -27,28 +28,29 @@ namespace Automatica.Core.Runtime.Database
         {
             var context = services.GetRequiredService<AutomaticaContext>();
             var visuInitFactory = services.GetRequiredService<IVisualisationFactory>();
-            var config = services.GetRequiredService<IConfiguration>();
+            var config = services.GetRequiredService<IConfigurationRoot>();
+            
             context.Database.Migrate();
 
             bool dbCreated = !context.BoardTypes.Any();
 
             if (dbCreated)
             {
-                context.RuleInterfaceDirections.Add(new EF.Models.RuleInterfaceDirection()
+                context.RuleInterfaceDirections.Add(new RuleInterfaceDirection
                 {
                     ObjId = 1,
                     Name = "Input",
                     Description = "Input",
                     Key = "I"
                 });
-                context.RuleInterfaceDirections.Add(new EF.Models.RuleInterfaceDirection()
+                context.RuleInterfaceDirections.Add(new RuleInterfaceDirection
                 {
                     ObjId = 2,
                     Name = "Output",
                     Description = "Output",
                     Key = "O"
                 });
-                context.RuleInterfaceDirections.Add(new EF.Models.RuleInterfaceDirection()
+                context.RuleInterfaceDirections.Add(new RuleInterfaceDirection
                 {
                     ObjId = 3,
                     Name = "Parameter",
@@ -56,36 +58,40 @@ namespace Automatica.Core.Runtime.Database
                     Key = "P"
                 });
 
-                context.RulePageTypes.Add(new RulePageType()
+                context.RulePageTypes.Add(new RulePageType
                 {
                     ObjId = 1,
                     Name = "Rules",
                     Description = "Rules",
                     Key = "rules"
                 });
-                context.VisuPageTypes.Add(new VisuPageType()
+
+                context.VisuPageTypes.Add(new VisuPageType
                 {
                     ObjId = 1,
                     Name = "PC",
                     Description = "PC",
                     Key = "pc"
                 });
-                context.VisuPageTypes.Add(new VisuPageType()
+                context.VisuPageTypes.Add(new VisuPageType
                 {
                     ObjId = 2,
                     Name = "Mobile",
                     Description = "Mobile",
                     Key = "mobile"
                 });
+
                 context.SaveChanges();
 
-                context.Slaves.Add(new Slave()
+                context.Slaves.Add(new Slave
                 {
                     ObjId = new Guid(ServerInfo.SelfSlaveId),
                     Name = "local",
                     Description = "this is me",
                     ClientId = "",
-                    ClientKey = ""
+                    ClientKey = "",
+                    CreatedAt = DateTimeOffset.Now,
+                    ModifiedAt = DateTimeOffset.Now
                 });
 
 
@@ -97,12 +103,16 @@ namespace Automatica.Core.Runtime.Database
                     Value = 0,
                     Group = "ConfigVersion",
                     IsVisible = false,
-                    Order = 10
+                    Order = 10,
+                    CreatedAt = DateTimeOffset.Now,
+                    ModifiedAt = DateTimeOffset.Now
                 });
                 context.SaveChanges();
             }
 
             var lat = context.Settings.SingleOrDefault(a => a.ValueKey == "Latitude");
+            var longi = context.Settings.SingleOrDefault(a => a.ValueKey == "Longitude");
+
 
             if (lat == null)
             {
@@ -113,9 +123,22 @@ namespace Automatica.Core.Runtime.Database
                     Value = 0,
                     Group = "SERVER.SETTINGS",
                     IsVisible = true,
-                    Order = 10
+                    Order = 10,
+                    ReloadContext = SettingReloadContext.Server,
+                    NeedsReloadOnChange = true,
+                    CreatedAt = DateTimeOffset.Now,
+                    ModifiedAt = DateTimeOffset.Now
                 });
-
+            }
+            else
+            {
+                lat.ValueDouble ??= 0;
+                lat.NeedsReloadOnChange = true;
+                lat.ReloadContext = SettingReloadContext.Server;
+                context.Settings.Update(lat);
+            }
+            if(longi == null)
+            {
                 context.Settings.Add(new Setting
                 {
                     ValueKey = "Longitude",
@@ -123,25 +146,19 @@ namespace Automatica.Core.Runtime.Database
                     Value = 0,
                     Group = "SERVER.SETTINGS",
                     IsVisible = true,
-                    Order = 11
+                    Order = 11,
+                    ReloadContext = SettingReloadContext.Server,
+                    NeedsReloadOnChange = true,
+                    CreatedAt = DateTimeOffset.Now,
+                    ModifiedAt = DateTimeOffset.Now
                 });
             }
             else
             {
-                var longi = context.Settings.SingleOrDefault(a => a.ValueKey == "Longitude");
-
-                if (lat.ValueDouble == null)
-                {
-                    lat.ValueDouble = 0;
-                }
-
-                if (longi.ValueDouble == null)
-                {
-                    longi.ValueDouble = 0;
-                }
-
+                longi.ValueDouble ??= 0;
+                longi.NeedsReloadOnChange = true;
+                longi.ReloadContext = SettingReloadContext.Server;
                 context.Settings.Update(longi);
-                context.Settings.Update(lat);
             }
 
             var apiKey = context.Settings.SingleOrDefault(a => a.ValueKey == "apiKey");
@@ -155,7 +172,9 @@ namespace Automatica.Core.Runtime.Database
                     Value = "",
                     Group = "SERVER.SETTINGS",
                     IsVisible = true,
-                    Order = 0
+                    Order = 0,
+                    CreatedAt = DateTimeOffset.Now,
+                    ModifiedAt = DateTimeOffset.Now
                 });
             }
 
@@ -172,7 +191,9 @@ namespace Automatica.Core.Runtime.Database
                     Value = false,
                     Group = "SERVER.SETTINGS",
                     IsVisible = true,
-                    Order = 20
+                    Order = 20,
+                    CreatedAt = DateTimeOffset.Now,
+                    ModifiedAt = DateTimeOffset.Now
                 });
             }
             else
@@ -190,7 +211,9 @@ namespace Automatica.Core.Runtime.Database
                     Value = new DateTime(2000, 12, 31, 2, 0, 0),
                     Group = "SERVER.SETTINGS",
                     IsVisible = true,
-                    Order = 21
+                    Order = 21,
+                    CreatedAt = DateTimeOffset.Now,
+                    ModifiedAt = DateTimeOffset.Now
                 });
             }
             else
@@ -209,7 +232,9 @@ namespace Automatica.Core.Runtime.Database
                     Value = false,
                     Group = "SERVER.SETTINGS",
                     IsVisible = true,
-                    Order = 22
+                    Order = 22,
+                    CreatedAt = DateTimeOffset.Now,
+                    ModifiedAt = DateTimeOffset.Now
                 });
             }
             else
@@ -226,10 +251,12 @@ namespace Automatica.Core.Runtime.Database
                 {
                     ValueKey = "cloudUrl",
                     Type = (long)PropertyTemplateType.Text,
-                    Value = "https://automatica-core-cloud.azurewebsites.net",
+                    Value = "https://cloud-dev.automaticacore.com/",
                     Group = "SERVER.SETTINGS",
                     IsVisible = true,
-                    Order = 1
+                    Order = 1,
+                    CreatedAt = DateTimeOffset.Now,
+                    ModifiedAt = DateTimeOffset.Now
                 });
 
             }
@@ -252,7 +279,9 @@ namespace Automatica.Core.Runtime.Database
                     Value = cloudEnvironmentType,
                     Group = "SERVER.SETTINGS",
                     IsVisible = true,
-                    Order = 2
+                    Order = 2,
+                    CreatedAt = DateTimeOffset.Now,
+                    ModifiedAt = DateTimeOffset.Now
                 });
             }
 
@@ -267,7 +296,9 @@ namespace Automatica.Core.Runtime.Database
                     Value = "Automatica.Core",
                     Group = "SERVER.SETTINGS",
                     IsVisible = true,
-                    Order = 3
+                    Order = 3,
+                    CreatedAt = DateTimeOffset.Now,
+                    ModifiedAt = DateTimeOffset.Now
                 });
             }
 
@@ -283,7 +314,9 @@ namespace Automatica.Core.Runtime.Database
                     Value = 0,
                     Group = "SERVER.SETTINGS",
                     IsVisible = true,
-                    Order = 1
+                    Order = 1,
+                    CreatedAt = DateTimeOffset.Now,
+                    ModifiedAt = DateTimeOffset.Now
                 });
 
             }
@@ -300,16 +333,43 @@ namespace Automatica.Core.Runtime.Database
                     Group = "SERVER.SETTINGS",
                     IsVisible = true,
                     Order = 0,
-                    Meta = PropertyHelper.CreateMultiSelect(typeof(DataRecorderType))
+                    Meta = PropertyHelper.CreateMultiSelect(typeof(DataRecorderType)),
+                    NeedsReloadOnChange = true,
+                    ReloadContext = SettingReloadContext.Recorders,
+                    CreatedAt = DateTimeOffset.Now,
+                    ModifiedAt = DateTimeOffset.Now
                 });
             }
             else
             {
                 trendingRecorder.Meta = PropertyHelper.CreateMultiSelect(typeof(DataRecorderType));
+                trendingRecorder.NeedsReloadOnChange = true;
+                trendingRecorder.ReloadContext = SettingReloadContext.Recorders;
                 context.Update(trendingRecorder);
             }
 
+            var language = context.Settings.SingleOrDefault(a => a.ValueKey == "language");
+
+            if (language == null)
+            {
+                context.Settings.Add(new Setting
+                {
+                    ValueKey = "language",
+                    Type = (long)PropertyTemplateType.Enum,
+                    Value = Language.English,
+                    Group = "SERVER.SETTINGS",
+                    IsVisible = true,
+                    Order = 1,
+                    Meta = PropertyHelper.CreateEnumMetaString(typeof(Language)),
+                    CreatedAt = DateTimeOffset.Now,
+                    ModifiedAt = DateTimeOffset.Now
+                });
+
+            }
+
             AddHostedGrafanaRecorderSettings(context);
+            AddRemoteConnectSettings(context);
+            AddHyperSeriesRecorderSettings(context);
 
             var propertyTypes = Enum.GetValues(typeof(PropertyTemplateType));
 
@@ -325,7 +385,7 @@ namespace Automatica.Core.Runtime.Database
                 }
 
                 var type = propertyType.GetType();
-                var memInfo = type.GetMember(propertyType.ToString());
+                var memInfo = type!.GetMember(propertyType.ToString());
                 var attributes = memInfo[0].GetCustomAttributes(typeof(PropertyTemplateTypeAttribute), false);
 
                 if (attributes.Length > 0 && attributes[0] is PropertyTemplateTypeAttribute attribute)
@@ -366,7 +426,7 @@ namespace Automatica.Core.Runtime.Database
                 }
 
                 var type = nodeDataType.GetType();
-                var memInfo = type.GetMember(nodeDataType.ToString());
+                var memInfo = type!.GetMember(nodeDataType.ToString());
                 var attributes = memInfo[0].GetCustomAttributes(typeof(NodeDataTypeEnumAttribute), false);
 
                 if (attributes.Length > 0 && attributes[0] is NodeDataTypeEnumAttribute attribute)
@@ -401,11 +461,15 @@ namespace Automatica.Core.Runtime.Database
             AddSystemTemplates(context);
             AddSystemRemoteTemplates(context);
 
-            IDatabaseBoardType boardType = null;
+            IDatabaseBoardType boardType;
 
             if (BoardTypes.Docker.Docker.InDocker)
             {
                 boardType = new BoardTypes.Docker.Docker();
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                boardType = new BoardTypes.Windows.GenericWindows();
             }
             else
             {
@@ -478,26 +542,12 @@ namespace Automatica.Core.Runtime.Database
                 var rulePage = new RulePage
                 {
                     ObjId = Guid.NewGuid(),
-                    Name = "Page1",
+                    Name = "Logics",
                     Description = "",
                     This2RulePageType = 1
                 };
 
                 context.RulePages.Add(rulePage);
-            }
-
-            if (!context.VisuPages.Any())
-            {
-                var visuPage = new VisuPage
-                {
-                    ObjId = Guid.NewGuid(),
-                    Name = "Page1",
-                    Description = "",
-                    This2VisuPageType = 2,
-                    DefaultPage = true
-                };
-
-                context.VisuPages.Add(visuPage);
             }
 
             if (!context.Users.Any())
@@ -506,6 +556,177 @@ namespace Automatica.Core.Runtime.Database
             }
 
             context.SaveChanges();
+            config.Reload();
+        }
+
+        private static void AddRemoteConnectSettings(AutomaticaContext context)
+        {
+
+            var ngrokEnabled = context.Settings.SingleOrDefault(a => a.ValueKey == "ngrokEnabled");
+            if(ngrokEnabled != null) context.Settings.Remove(ngrokEnabled);
+
+            var remoteEnabled = context.Settings.SingleOrDefault(a => a.ValueKey == "remoteEnabled");
+            if (remoteEnabled == null)
+            {
+                context.Settings.Add(new Setting
+                {
+                    ValueKey = "remoteEnabled",
+                    Type = (long)PropertyTemplateType.Bool,
+                    Value = false,
+                    Group = "SERVER.REMOTE",
+                    IsVisible = true,
+                    Order = 1,
+                    NeedsReloadOnChange = true,
+                    ReloadContext = SettingReloadContext.RemoteConnect
+                });
+            }
+            else
+            {
+                remoteEnabled.NeedsReloadOnChange = true;
+                remoteEnabled.ReloadContext = SettingReloadContext.RemoteConnect;
+            }
+
+            var ngrokToken = context.Settings.SingleOrDefault(a => a.ValueKey == "ngrokToken");
+            if (ngrokToken != null) context.Settings.Remove(ngrokToken);
+
+
+            var ngrokDomain = context.Settings.SingleOrDefault(a => a.ValueKey == "ngrokDomain");
+            if (ngrokDomain != null) context.Settings.Remove(ngrokDomain);
+
+            var remoteDomain = context.Settings.SingleOrDefault(a => a.ValueKey == "remoteDomain");
+            if (remoteDomain == null)
+            {
+                context.Settings.Add(new Setting
+                {
+                    ValueKey = "remoteDomain",
+                    Type = (long)PropertyTemplateType.Text,
+                    Value = null,
+                    Group = "SERVER.REMOTE",
+                    IsVisible = true,
+                    Order = 2,
+                    NeedsReloadOnChange = true,
+                    ReloadContext = SettingReloadContext.RemoteConnect
+                });
+            }
+            else
+            {
+                remoteDomain.NeedsReloadOnChange = true;
+                remoteDomain.ReloadContext = SettingReloadContext.RemoteConnect;
+            }
+        }
+
+        private static void AddHyperSeriesRecorderSettings(AutomaticaContext context)
+        {
+            var host = context.Settings.SingleOrDefault(a => a.ValueKey == "hyperSeriesHost");
+
+            if (host == null)
+            {
+                context.Settings.Add(new Setting
+                {
+                    ValueKey = "hyperSeriesHost",
+                    Type = (long)PropertyTemplateType.Text,
+                    Value = "",
+                    Group = "SERVER.RECORDERS.HYPERSERIES",
+                    IsVisible = true,
+                    Order = 0,
+                    ReloadContext = SettingReloadContext.Recorders,
+                    NeedsReloadOnChange = true
+                });
+            }
+            else
+            {
+                host.ReloadContext = SettingReloadContext.Recorders;
+                host.NeedsReloadOnChange = true;
+            }
+
+
+            var port = context.Settings.SingleOrDefault(a => a.ValueKey == "hyperSeriesPort");
+
+            if (port == null)
+            {
+                context.Settings.Add(new Setting
+                {
+                    ValueKey = "hyperSeriesPort",
+                    Type = (long)PropertyTemplateType.Numeric,
+                    Value = "5432",
+                    Group = "SERVER.RECORDERS.HYPERSERIES",
+                    IsVisible = true,
+                    Order = 0,
+                    ReloadContext = SettingReloadContext.Recorders,
+                    NeedsReloadOnChange = true
+                });
+            }
+            else
+            {
+                port.ReloadContext = SettingReloadContext.Recorders;
+                port.NeedsReloadOnChange = true;
+            }
+
+            var user = context.Settings.SingleOrDefault(a => a.ValueKey == "hyperSeriesUser");
+
+            if (user == null)
+            {
+                context.Settings.Add(new Setting
+                {
+                    ValueKey = "hyperSeriesUser",
+                    Type = (long)PropertyTemplateType.Text,
+                    Value = "",
+                    Group = "SERVER.RECORDERS.HYPERSERIES",
+                    IsVisible = true,
+                    Order = 1,
+                    ReloadContext = SettingReloadContext.Recorders,
+                    NeedsReloadOnChange = true
+                });
+            }
+            else
+            {
+                user.ReloadContext = SettingReloadContext.Recorders;
+                user.NeedsReloadOnChange = true;
+            }
+
+            var password = context.Settings.SingleOrDefault(a => a.ValueKey == "hyperSeriesPassword");
+
+            if (password == null)
+            {
+                context.Settings.Add(new Setting
+                {
+                    ValueKey = "hyperSeriesPassword",
+                    Type = (long)PropertyTemplateType.Password,
+                    Value = "",
+                    Group = "SERVER.RECORDERS.HYPERSERIES",
+                    IsVisible = true,
+                    Order = 2,
+                    ReloadContext = SettingReloadContext.Recorders,
+                    NeedsReloadOnChange = true
+                });
+            }
+            else
+            {
+                password.ReloadContext = SettingReloadContext.Recorders;
+                password.NeedsReloadOnChange = true;
+            }
+            var database = context.Settings.SingleOrDefault(a => a.ValueKey == "hyperSeriesDatabase");
+
+            if (database == null)
+            {
+                context.Settings.Add(new Setting
+                {
+                    ValueKey = "hyperSeriesDatabase",
+                    Type = (long)PropertyTemplateType.Text,
+                    Value = "",
+                    Group = "SERVER.RECORDERS.HYPERSERIES",
+                    IsVisible = true,
+                    Order = 3,
+                    ReloadContext = SettingReloadContext.Recorders,
+                    NeedsReloadOnChange = true
+                });
+            }
+            else
+            {
+                database.Type = (long) PropertyTemplateType.Text;
+                database.ReloadContext = SettingReloadContext.Recorders;
+                database.NeedsReloadOnChange = true;
+            }
         }
 
         private static void AddHostedGrafanaRecorderSettings(AutomaticaContext context)
@@ -521,7 +742,11 @@ namespace Automatica.Core.Runtime.Database
                     Value = "",
                     Group = "SERVER.RECORDERS.HOSTED_GRAFANA",
                     IsVisible = true,
-                    Order = 0
+                    Order = 0,
+                    ReloadContext = SettingReloadContext.Recorders,
+                    NeedsReloadOnChange = true,
+                    CreatedAt = DateTimeOffset.Now,
+                    ModifiedAt = DateTimeOffset.Now
                 });
             }
             var apiKey = context.Settings.SingleOrDefault(a => a.ValueKey == "hostedGrafanaApiKey");
@@ -535,7 +760,11 @@ namespace Automatica.Core.Runtime.Database
                     Value = "",
                     Group = "SERVER.RECORDERS.HOSTED_GRAFANA",
                     IsVisible = true,
-                    Order = 1
+                    Order = 1,
+                    ReloadContext = SettingReloadContext.Recorders,
+                    NeedsReloadOnChange = true,
+                    CreatedAt = DateTimeOffset.Now,
+                    ModifiedAt = DateTimeOffset.Now
                 });
             }
             var userId = context.Settings.SingleOrDefault(a => a.ValueKey == "hostedGrafanaUserId");
@@ -549,7 +778,11 @@ namespace Automatica.Core.Runtime.Database
                     Value = "",
                     Group = "SERVER.RECORDERS.HOSTED_GRAFANA",
                     IsVisible = true,
-                    Order = 1
+                    Order = 1,
+                    ReloadContext = SettingReloadContext.Recorders,
+                    NeedsReloadOnChange = true,
+                    CreatedAt = DateTimeOffset.Now,
+                    ModifiedAt = DateTimeOffset.Now
                 });
             }
         }
@@ -564,7 +797,9 @@ namespace Automatica.Core.Runtime.Database
                 LastName = "admin",
                 Salt = salt,
                 Password = UserHelper.HashPassword("sa", salt),
-                ObjId = Guid.NewGuid()
+                ObjId = Guid.NewGuid(),
+                CreatedAt = DateTimeOffset.Now,
+                ModifiedAt = DateTimeOffset.Now
             };
 
             context.Add(saUser);
@@ -573,7 +808,9 @@ namespace Automatica.Core.Runtime.Database
             var adminGroup = new UserGroup
             {
                 ObjId = Guid.NewGuid(),
-                Name = "Admin"
+                Name = "Admin",
+                CreatedAt = DateTimeOffset.Now,
+                ModifiedAt = DateTimeOffset.Now
             };
 
             context.Add(adminGroup);
@@ -584,7 +821,9 @@ namespace Automatica.Core.Runtime.Database
                 ObjId = Guid.NewGuid(),
                 Name = "ROLES.ADMINISTRATOR.NAME",
                 Description = "ROLES.ADMINISTRATOR.DESCRIPTION",
-                Key = Role.AdminRole
+                Key = Role.AdminRole,
+                CreatedAt = DateTimeOffset.Now,
+                ModifiedAt = DateTimeOffset.Now
             };
             context.Add(adminRole);
 
@@ -593,7 +832,9 @@ namespace Automatica.Core.Runtime.Database
                 ObjId = Guid.NewGuid(),
                 Name = "PRIVILEDGE.ALL.NAME",
                 Description = "PRIVILEDGE.ALL.DESCRIPTION",
-                Key = "superuser"
+                Key = "superuser",
+                CreatedAt = DateTimeOffset.Now,
+                ModifiedAt = DateTimeOffset.Now
             };
 
             context.Add(priviliedge);
@@ -626,7 +867,9 @@ namespace Automatica.Core.Runtime.Database
                 LastName = "Visu",
                 Salt = salt,
                 Password = UserHelper.HashPassword("visu", salt),
-                ObjId = Guid.NewGuid()
+                ObjId = Guid.NewGuid(),
+                CreatedAt = DateTimeOffset.Now,
+                ModifiedAt = DateTimeOffset.Now
             };
 
             context.Add(visuUser);
@@ -634,7 +877,9 @@ namespace Automatica.Core.Runtime.Database
             var visuGroup = new UserGroup
             {
                 ObjId = Guid.NewGuid(),
-                Name = "Visu"
+                Name = "Visu",
+                CreatedAt = DateTimeOffset.Now,
+                ModifiedAt = DateTimeOffset.Now
             };
 
             context.Add(visuGroup);
@@ -651,7 +896,9 @@ namespace Automatica.Core.Runtime.Database
                 ObjId = Guid.NewGuid(),
                 Name = "ROLES.VISUALISATION.NAME",
                 Description = "ROLES.VISUALISATION.DESCRIPTION",
-                Key = Role.VisuRole
+                Key = Role.VisuRole,
+                CreatedAt = DateTimeOffset.Now,
+                ModifiedAt = DateTimeOffset.Now
             };
             context.Add(visuRole);
 
@@ -660,7 +907,9 @@ namespace Automatica.Core.Runtime.Database
                 ObjId = Guid.NewGuid(),
                 Name = "PRIVILEDGE.VISU.NAME",
                 Description = "PRIVILEDGE.VISU.DESCRIPTION",
-                Key = "visu"
+                Key = "visu",
+                CreatedAt = DateTimeOffset.Now,
+                ModifiedAt = DateTimeOffset.Now
             };
 
             context.Add(visuPriviliedge);
@@ -679,7 +928,7 @@ namespace Automatica.Core.Runtime.Database
             });
 
 
-            context.Add(new UserGroup2Role()
+            context.Add(new UserGroup2Role
             {
                 This2UserGroup = visuGroup.ObjId,
                 This2Role = visuRole.ObjId
@@ -687,7 +936,6 @@ namespace Automatica.Core.Runtime.Database
 
 
             context.SaveChanges();
-
         }
 
         private static void AddAreaData(AutomaticaContext context)
@@ -754,7 +1002,11 @@ namespace Automatica.Core.Runtime.Database
                     var isNew = false;
                     if (areaTemplateDb == null)
                     {
-                        areaTemplateDb = new AreaTemplate();
+                        areaTemplateDb = new AreaTemplate
+                        {
+                            CreatedAt = DateTimeOffset.Now,
+                            ModifiedAt = DateTimeOffset.Now
+                        };
                         areaTemplateDb.ObjId = attribute.ObjId;
 
                         isNew = true;
@@ -802,7 +1054,9 @@ namespace Automatica.Core.Runtime.Database
                 IsWriteableFixed = true,
                 MaxInstances = int.MaxValue,
                 This2NodeDataType = (int)NodeDataType.NoAttribute,
-                IsAdapterInterface = true
+                IsAdapterInterface = true,
+                CreatedAt = DateTimeOffset.Now,
+                ModifiedAt = DateTimeOffset.Now
             };
 
             if (context.NodeTemplates.SingleOrDefault(a => a.ObjId == usbIr.ObjId) == null)
@@ -829,7 +1083,9 @@ namespace Automatica.Core.Runtime.Database
                 IsWriteableFixed = true,
                 MaxInstances = int.MaxValue,
                 This2NodeDataType = (int)NodeDataType.NoAttribute,
-                IsAdapterInterface = true
+                IsAdapterInterface = true,
+                CreatedAt = DateTimeOffset.Now,
+                ModifiedAt = DateTimeOffset.Now
             };
 
 
@@ -855,7 +1111,9 @@ namespace Automatica.Core.Runtime.Database
                 IsWriteableFixed = true,
                 MaxInstances = int.MaxValue,
                 This2NodeDataType = (int)NodeDataType.NoAttribute,
-                IsAdapterInterface = true
+                IsAdapterInterface = true,
+                CreatedAt = DateTimeOffset.Now,
+                ModifiedAt = DateTimeOffset.Now
             };
 
             if (context.NodeTemplates.SingleOrDefault(a => a.ObjId == usb232.ObjId) == null)
@@ -884,7 +1142,9 @@ namespace Automatica.Core.Runtime.Database
                 IsWriteableFixed = true,
                 MaxInstances = int.MaxValue,
                 This2NodeDataType = (int)NodeDataType.NoAttribute,
-                IsAdapterInterface = true
+                IsAdapterInterface = true,
+                CreatedAt = DateTimeOffset.Now,
+                ModifiedAt = DateTimeOffset.Now
             };
 
             if (context.NodeTemplates.SingleOrDefault(a => a.ObjId == usbIr.ObjId) == null)
@@ -911,7 +1171,9 @@ namespace Automatica.Core.Runtime.Database
                 IsWriteableFixed = true,
                 MaxInstances = int.MaxValue,
                 This2NodeDataType = (int)NodeDataType.NoAttribute,
-                IsAdapterInterface = true
+                IsAdapterInterface = true,
+                CreatedAt = DateTimeOffset.Now,
+                ModifiedAt = DateTimeOffset.Now
             };
 
             if (context.NodeTemplates.SingleOrDefault(a => a.ObjId == usbrs485.ObjId) == null)
@@ -937,7 +1199,9 @@ namespace Automatica.Core.Runtime.Database
                 IsWriteableFixed = true,
                 MaxInstances = int.MaxValue,
                 This2NodeDataType = (int)NodeDataType.NoAttribute,
-                IsAdapterInterface = true
+                IsAdapterInterface = true,
+                CreatedAt = DateTimeOffset.Now,
+                ModifiedAt = DateTimeOffset.Now
             };
 
             if (context.NodeTemplates.SingleOrDefault(a => a.ObjId == usbrs232.ObjId) == null)
@@ -991,6 +1255,8 @@ namespace Automatica.Core.Runtime.Database
                     ProvidesInterface2InterfaceType = board.Type,
                     This2NodeDataType = (int)NodeDataType.NoAttribute,
                     This2DefaultMobileVisuTemplate = VisuMobileObjectTemplateTypeAttribute.GetFromEnum(VisuMobileObjectTemplateTypes.Label),
+                    CreatedAt = DateTimeOffset.Now,
+                    ModifiedAt = DateTimeOffset.Now
                 };
 
                 context.NodeTemplates.Add(boardNodeTemplate);
@@ -1023,6 +1289,8 @@ namespace Automatica.Core.Runtime.Database
                         ProvidesInterface2InterfaceType = boardInterface.This2InterfaceType,
                         This2NodeDataType = (int)NodeDataType.NoAttribute,
                         This2DefaultMobileVisuTemplate = VisuMobileObjectTemplateTypeAttribute.GetFromEnum(VisuMobileObjectTemplateTypes.Label),
+                        CreatedAt = DateTimeOffset.Now,
+                        ModifiedAt = DateTimeOffset.Now
                     };
 
                     context.NodeTemplates.Add(nodeTemplate);

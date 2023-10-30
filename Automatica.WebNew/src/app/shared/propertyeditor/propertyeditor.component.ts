@@ -1,8 +1,8 @@
-import { Component, OnInit, Input, ViewChild, Output, EventEmitter, ChangeDetectionStrategy, ChangeDetectorRef } from "@angular/core";
+import { Component, OnInit, Input, ViewChild, Output, EventEmitter, ChangeDetectionStrategy, ChangeDetectorRef, ViewChildren, QueryList } from "@angular/core";
 import { CommonModule, NgSwitch, NgSwitchCase, NgSwitchDefault } from "@angular/common";
 import { ConfigService } from "../../services/config.service";
 import { L10nTranslationService } from "angular-l10n";
-import { DxDataGridComponent, DxCheckBoxComponent, DxPopupComponent, DxValidatorComponent, DxTreeViewComponent, DxDropDownBoxComponent } from "devextreme-angular";
+import { DxDataGridComponent, DxCheckBoxComponent, DxPopupComponent, DxValidatorComponent, DxTreeViewComponent, DxDropDownBoxComponent, DxComponent, DxTextBoxComponent, DxSelectBoxComponent } from "devextreme-angular";
 import { BaseService } from "src/app/services/base-service";
 import { IPropertyModel } from "src/app/base/model/interfaces";
 import { UserGroup } from "src/app/base/model/user/user-group";
@@ -19,18 +19,22 @@ import { VisuPage } from "src/app/base/model/visu-page";
 import { AreaInstance } from "src/app/base/model/areas";
 import { CategoryInstance } from "src/app/base/model/categories";
 import { DataHubService } from "src/app/base/communication/hubs/data-hub.service";
-import { VirtualAreaPropertyInstance } from "src/app/base/model/virtual-props";
+import { VirtualAreaPropertyInstance, VirtualDescriptionPropertyInstance } from "src/app/base/model/virtual-props";
 import { ConfigTreeComponent } from "../config-tree/config-tree.component";
-import { Slave } from "src/app/base/model/slaves/slave";
-import { SlavesService } from "src/app/services/slaves.services";
+import { Satellite } from "src/app/base/model/satellites/satellite";
+import { SatelliteService } from "src/app/services/satellite.services";
 import { LearnModeNodeTemplate } from "src/app/base/model/learnmode/learn-mode-node-template";
 import { AppService } from "src/app/services/app.service";
 import { NodeInstanceService } from "src/app/services/node-instance.service";
 import { RuleInstance } from "src/app/base/model/rule-instance";
-import { RuleEngineService } from "src/app/services/ruleengine.service";
+import { LogicEngineService } from "src/app/services/logicengine.service";
 import { RulePage } from "src/app/base/model/rule-page";
 import DataSource from "devextreme/data/data_source";
 import ArrayStore from "devextreme/data/array_store";
+import { NodeInstanceImportComponent } from "./node-instance-ets-import/node-instance-import.component";
+import { NodeInstanceImportSerivce } from "./node-instance-ets-import/node-instance-import.service";
+import { Router } from "@angular/router";
+import { VirtualGenericPropertyInstance } from "src/app/base/model/virtual-props/virtual-generic-property-instance";
 
 function sortProperties(a: PropertyInstance, b: PropertyInstance) {
   if (a.PropertyTemplate.Order < b.PropertyTemplate.Order) {
@@ -169,6 +173,9 @@ export class PropertyEditorComponent extends BaseComponent implements OnInit {
   public timerEditValue: TimerPropertyData = void 0;
   public selectedProperty: PropertyInstance = void 0;
 
+  @ViewChild("nodeInstanceImport")
+  NodeInstanceImportComponent: NodeInstanceImportComponent;
+
   @Output()
   public scan = new EventEmitter<NodeInstance>();
   @Output()
@@ -185,6 +192,21 @@ export class PropertyEditorComponent extends BaseComponent implements OnInit {
 
     if (this.item && this.item.Properties) {
       this._properties = this.item.Properties.filter(a => a.IsVisible).sort(sortProperties);
+
+      for (var a of this._properties) {
+        if (a instanceof VirtualDescriptionPropertyInstance) {
+
+          if (a.Value === "" || !a.Value) {
+            continue;
+          }
+          var hasTranslation = this.translate.has(a.Value);
+          if (!hasTranslation) {
+            a.Value = "";
+          } else {
+            a.Value = this.translate.translate(a.Value);
+          }
+        }
+      }
     }
     if (!value) {
       this._properties = [];
@@ -216,7 +238,8 @@ export class PropertyEditorComponent extends BaseComponent implements OnInit {
   }
   public set areaInstances(v: AreaInstance[]) {
     this._areaInstances = v;
-    this.flattenAraInit();
+    this.flattenAreaInit();
+    console.log(this.areaInstancesFlat);
   }
 
 
@@ -261,14 +284,14 @@ export class PropertyEditorComponent extends BaseComponent implements OnInit {
 
 
 
-  private _slaves: Slave[];
+  private _satellites: Satellite[];
 
   @Input()
-  public get slaves(): Slave[] {
-    return this._slaves;
+  public get satellites(): Satellite[] {
+    return this._satellites;
   }
-  public set slaves(v: Slave[]) {
-    this._slaves = v;
+  public set satellites(v: Satellite[]) {
+    this._satellites = v;
   }
 
 
@@ -285,24 +308,34 @@ export class PropertyEditorComponent extends BaseComponent implements OnInit {
   @ViewChild("endDateValidator")
   endDateValidator: DxValidatorComponent;
 
+  @ViewChildren('control') controls: QueryList<any>;
+
   constructor(
     private config: ConfigService,
     translate: L10nTranslationService,
     private dataHub: DataHubService,
     private notify: NotifyService,
-    private slaveService: SlavesService,
+    private satellitesService: SatelliteService,
     appService: AppService,
     private nodeInstanceService: NodeInstanceService,
-    private ruleEngineService: RuleEngineService,
-    private changeDetection: ChangeDetectorRef) {
+    private ruleEngineService: LogicEngineService,
+    private changeDetection: ChangeDetectorRef,
+    private router: Router,
+    private nodeInstanceImportService: NodeInstanceImportSerivce) {
     super(notify, translate, appService);
   }
 
   async ngOnInit() {
-    this.slaves = await this.slaveService.getSlaves();
+    this.satellites = await this.satellitesService.getAll();
+
+    var gridHeight = this.dataTable.instance.element().clientHeight;
+    var pageSize = gridHeight / 30;
+
+    this.dataTable.instance.pageSize(pageSize);
+
   }
 
-  flattenAraInit() {
+  flattenAreaInit() {
     for (const x of this.areaInstances) {
       this.areaInstancesFlat.push(x);
       this.areaInstanceMap.set(x.ObjId, x);
@@ -320,7 +353,33 @@ export class PropertyEditorComponent extends BaseComponent implements OnInit {
     }
   }
 
+  onFocusedCellChanging(e) {
+    e.preventDefault = true;
+    var cellElement = e.cellElement[0];
 
+    if (cellElement.id?.startsWith("control-"))
+      return;
+
+    var control = this.searchControlRecursive(cellElement);
+
+    for (const dxControl of this.controls) {
+      if (dxControl.element.nativeElement == control) {
+        setTimeout(async () => {
+          await dxControl.instance.focus();
+        });
+      }
+    }
+  }
+
+  searchControlRecursive(parent) {
+    for (const child of parent.children) {
+      if (child.id?.startsWith("control-")) {
+        return child;
+      }
+      return this.searchControlRecursive(child);
+    }
+    return null;
+  }
 
 
   nodeSelect($event) {
@@ -425,6 +484,14 @@ export class PropertyEditorComponent extends BaseComponent implements OnInit {
     }
   }
 
+  async onImportOpen($event, data: PropertyInstance) {
+    this.NodeInstanceImportComponent.isVisible = true;
+    this.NodeInstanceImportComponent.nodeInstance = this.item;
+    this.NodeInstanceImportComponent.propertyInstance = data;
+
+    this.NodeInstanceImportComponent.fileUploaded = this.fileUploaded;
+  }
+
   nodeTemplateSelectItem($event, learnInstance: LearnNodeInstance) {
     if ($event.node.children.length === 0) {
       learnInstance.nodeTemplateInstance = $event.itemData;
@@ -512,11 +579,33 @@ export class PropertyEditorComponent extends BaseComponent implements OnInit {
       this.learnModeSub = void 0;
     }
   }
+  async optionChanged(e, data) {
+    console.log(e);
+    console.log(data);
 
+    if (e.name == "value") {
+
+      var oldValue = JSON.stringify(e.previousValue);
+      var newValue = JSON.stringify(e.value);
+
+      if (newValue == oldValue) {
+        return;
+      }
+
+      this.valueChanged(e, data);
+    }
+  }
   async valueChanged(e, data) {
     const prop = data.data as PropertyInstance;
 
     this.validate.emit(prop);
+
+    if (prop instanceof VirtualGenericPropertyInstance) {
+      if (!prop.updateOnChanges) {
+        return;
+      }
+    }
+
     this.appService.isLoading = true;
     try {
       if (this.item instanceof NodeInstance) {

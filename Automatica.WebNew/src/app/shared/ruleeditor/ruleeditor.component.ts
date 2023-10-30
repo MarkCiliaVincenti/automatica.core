@@ -1,5 +1,5 @@
 import { Component, OnInit, Input, Output, EventEmitter, AfterViewInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef, ViewChild, ElementRef } from "@angular/core";
-import { RuleEngineService, AddLogicData } from "../../services/ruleengine.service";
+import { LogicEngineService, AddLogicData } from "../../services/logicengine.service";
 import { L10nTranslationService } from "angular-l10n";
 import { RulePage } from "src/app/base/model/rule-page";
 import { NotifyService } from "src/app/services/notify.service";
@@ -17,6 +17,7 @@ import { AppService } from "src/app/services/app.service";
 import { ThemeService } from "src/app/services/theme.service";
 import { Subscription } from "rxjs";
 import { ILogicErrorHandler } from "./ilogicErrorHandler";
+import { ILogicInfoHandler } from "./ilogicInfoHandler";
 
 declare var draw2d: any;
 
@@ -26,7 +27,7 @@ declare var draw2d: any;
   styleUrls: ["./ruleeditor.component.scss"],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class RuleEditorComponent extends BaseComponent implements OnInit, AfterViewInit, OnDestroy, ILogicErrorHandler {
+export class RuleEditorComponent extends BaseComponent implements OnInit, AfterViewInit, OnDestroy, ILogicErrorHandler, ILogicInfoHandler {
 
   @Input()
   page: RulePage;
@@ -34,6 +35,7 @@ export class RuleEditorComponent extends BaseComponent implements OnInit, AfterV
   name: string;
 
   _selectedItem: any[];
+
   @Input()
   public get selectedItems(): any[] {
     return this._selectedItem;
@@ -63,13 +65,12 @@ export class RuleEditorComponent extends BaseComponent implements OnInit, AfterV
   private themeChangedSubDraw2d: Subscription;
 
   public height: number;
+  public infoPopupVisible: boolean = false;
 
-  
   @ViewChild("loadingPangel")
   loadingPangel: ElementRef;
 
-
-  constructor(private ruleEngineService: RuleEngineService,
+  constructor(private ruleEngineService: LogicEngineService,
     private dataHub: DataHubService,
     notify: NotifyService,
     translate: L10nTranslationService,
@@ -77,16 +78,19 @@ export class RuleEditorComponent extends BaseComponent implements OnInit, AfterV
     appService: AppService,
     private themeService: ThemeService) {
     super(notify, translate, appService);
+
   }
 
   notifyError(error: any) {
     this.handleError(error);
   }
 
+  showInfoForLogic(logic: RuleInstance) {
+    this.ruleEngineService.showInfo.emit(logic);
+  }
+
   async ngOnInit() {
 
-    
-    this.linkService = new LinkService(this.page, this.translate, this.ruleEngineService);
 
     super.registerEvent(this.ruleEngineService.add, (data: AddLogicData) => {
       if (data.pageId === this.page.ObjId) {
@@ -104,7 +108,7 @@ export class RuleEditorComponent extends BaseComponent implements OnInit, AfterV
       if (this.completeMap.has(id)) {
         const d = this.completeMap.get(id);
         if (d instanceof RuleInterfaceInstance) {
-          d.PortValue = data[2];
+          d.PortValue = data[2].value;
         }
       } else if (this.nodeInstance2RulePageMap.has(id)) {
         for (const x of this.nodeInstance2RulePageMap.get(id)) {
@@ -113,6 +117,15 @@ export class RuleEditorComponent extends BaseComponent implements OnInit, AfterV
       }
     });
 
+    super.registerEvent(this.page.onZoomIn, () => {
+      this.workplace.setZoom(this.workplace.getZoom() * 0.7, true);
+    });
+    super.registerEvent(this.page.onZoomToView, () => {
+      this.workplace.setZoom(1.0, true);
+    });
+    super.registerEvent(this.page.onZoomOut, () => {
+      this.workplace.setZoom(this.workplace.getZoom() * 1.3, true);
+    });
 
     this.changeRef.detectChanges();
   }
@@ -124,7 +137,7 @@ export class RuleEditorComponent extends BaseComponent implements OnInit, AfterV
 
   ngAfterViewInit() {
     this.height = this.loadingPangel.nativeElement.clientHeight;
-    
+
     this.onInit();
   }
 
@@ -173,7 +186,7 @@ export class RuleEditorComponent extends BaseComponent implements OnInit, AfterV
 
   init(): any {
 
-    LogicShapes.addShape(this.logic, this.ruleEngineService, this);
+    LogicShapes.addShape(this.logic, this.ruleEngineService, this, this);
     LogicLocators.addLocators(this.logic);
     LogicLables.addLables(this.logic);
 
@@ -202,12 +215,15 @@ export class RuleEditorComponent extends BaseComponent implements OnInit, AfterV
       }
       console.log(event);
     });
-    
+
   }
 
   onInit() {
     this.init();
-    this.loadModel(this.page);
+
+    const router = new draw2d.layout.connection.ManhattanBridgedConnectionRouter();
+    this.linkService = new LinkService(this.page, this.translate, this.ruleEngineService, router);
+    this.loadModel(this.page, router);
 
     this.linkService.isInit = false;
   }
@@ -248,7 +264,7 @@ export class RuleEditorComponent extends BaseComponent implements OnInit, AfterV
     this.workplace.add(d);
   }
 
-  loadModel(data: RulePage) {
+  loadModel(data: RulePage, router: any) {
 
     this.workplace.clear();
 
@@ -261,7 +277,7 @@ export class RuleEditorComponent extends BaseComponent implements OnInit, AfterV
     }
 
     for (const link of data.Links) {
-      const c = new draw2d.Connection();
+      const c = new draw2d.Connection({ router: router, userData: link });
       c.setUserData(link);
       const sourcePort = this.getSourcePort(link.from, link.fromPort);
 

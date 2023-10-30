@@ -9,7 +9,6 @@ using Automatica.Core.Base.Common;
 using Automatica.Core.Base.LinqExtensions;
 using Automatica.Core.EF.Models;
 using Automatica.Core.EF.Models.Areas;
-using Automatica.Core.Internals;
 using Automatica.Core.Internals.Areas;
 using Automatica.Core.Internals.Cache.Common;
 using Automatica.Core.Model.Models.User;
@@ -30,11 +29,13 @@ namespace Automatica.Core.WebApi.Controllers
     {
         private readonly IAreaCache _areaCache;
         private readonly IAreaTemplateCache _areaTemplateCache;
+        private readonly ILogger<AreaController> _logger;
 
-        public AreaController(AutomaticaContext dbContext, IAreaCache areaCache, IAreaTemplateCache areaTemplateCache) : base(dbContext)
+        public AreaController(AutomaticaContext dbContext, IAreaCache areaCache, IAreaTemplateCache areaTemplateCache, ILogger<AreaController> logger) : base(dbContext)
         {
             _areaCache = areaCache;
             _areaTemplateCache = areaTemplateCache;
+            _logger = logger;
         }
 
         [HttpGet]
@@ -58,10 +59,11 @@ namespace Automatica.Core.WebApi.Controllers
                 return new List<AreaInstance>(); 
             }
             var myFile = Request.Form.Files[0]; 
+            var password = Request.Headers["password"].ToString();
 
             try
             {
-                return await ProcessFile(parentInstance, myFile);
+                return await ProcessFile(parentInstance, password, myFile);
             }
             catch
             {
@@ -71,7 +73,7 @@ namespace Automatica.Core.WebApi.Controllers
             return new List<AreaInstance>();
         }
 
-        internal async Task<IEnumerable<AreaInstance>> ProcessFile(AreaInstance parentInstance, IFormFile formFile)
+        internal async Task<IEnumerable<AreaInstance>> ProcessFile(AreaInstance parentInstance, string password, IFormFile formFile)
         {
             var targetLocation = ServerInfo.GetTempPath();
             var path = Path.Combine(targetLocation, formFile.FileName);
@@ -83,7 +85,7 @@ namespace Automatica.Core.WebApi.Controllers
             }
 
 
-            var etsProject = new EtsProjectParser().ParseEtsFile(path, GroupAddressStyle.ThreeLevel);
+            var etsProject = new EtsProjectParser().ParseEtsFile(path, password, GroupAddressStyle.ThreeLevel);
 
             foreach (var b in etsProject.Buildings)
             {
@@ -137,7 +139,9 @@ namespace Automatica.Core.WebApi.Controllers
                 Description = building.Description,
                 Icon = icon,
                 This2AreaTemplate = typeGuid,
-                This2Parent = parent.ObjId
+                This2Parent = parent.ObjId,
+                CreatedAt = DateTimeOffset.Now,
+                ModifiedAt = DateTimeOffset.Now
             };
 
             foreach (var part in building.Children)
@@ -164,6 +168,8 @@ namespace Automatica.Core.WebApi.Controllers
                 {
                     instance.InverseThis2ParentNavigation = null;
                     instance.This2ParentNavigation = null;
+                    instance.CreatedAt = DateTimeOffset.Now;
+                    instance.ModifiedAt = DateTimeOffset.Now;
                     await DbContext.AreaInstances.AddAsync(instance);
                 }
 
@@ -195,9 +201,11 @@ namespace Automatica.Core.WebApi.Controllers
             instance.This2ParentNavigation = null;
             instance.This2UserGroupNavigation = null;
             instance.This2AreaTemplateNavigation = null;
+            instance.ModifiedAt = DateTimeOffset.Now;
 
             if (existingArea == null)
             {
+                instance.CreatedAt = DateTimeOffset.Now;
                 await DbContext.AreaInstances.AddAsync(instance);
             }
             else
@@ -217,43 +225,47 @@ namespace Automatica.Core.WebApi.Controllers
         [Authorize(Policy = Role.AdminRole)]
         public async Task<IEnumerable<AreaInstance>> SaveInstances([FromBody]IEnumerable<AreaInstance> areas)
         {
-            var transaction = await DbContext.Database.BeginTransactionAsync();
-            try
+            var strategy = DbContext.Database.CreateExecutionStrategy();
+            return await strategy.Execute(async
+                () =>
             {
-                var areaInstances = areas as AreaInstance[] ?? areas.ToArray();
-                var flatList = areaInstances.Flatten(a => a.InverseThis2ParentNavigation).ToList();
-                foreach (var area in areaInstances)
+                var transaction = await DbContext.Database.BeginTransactionAsync();
+                try
                 {
-                    await SaveAreaInstanceRec(area);
+                    var areaInstances = areas as AreaInstance[] ?? areas.ToArray();
+                    var flatList = areaInstances.Flatten(a => a.InverseThis2ParentNavigation).ToList();
+                    foreach (var area in areaInstances)
+                    {
+                        await SaveAreaInstanceRec(area);
+                    }
+
+                    await DbContext.SaveChangesAsync();
+
+
+
+                    var removedNodes = from c in DbContext.AreaInstances.AsNoTracking()
+                        where !(from o in flatList select o.ObjId).Contains(c.ObjId)
+                        select c;
+                    var removedAreasList = removedNodes.ToList();
+                    DbContext.RemoveRange(removedAreasList);
+                    removedAreasList.ForEach(a => { _areaCache.Remove(a.ObjId); });
+
+
+                    await DbContext.SaveChangesAsync(true);
+                    await transaction.CommitAsync();
                 }
-
-                await DbContext.SaveChangesAsync();
-
-
-
-                var removedNodes = from c in DbContext.AreaInstances.AsNoTracking()
-                    where !(from o in flatList select o.ObjId).Contains(c.ObjId)
-                    select c;
-                var removedAreasList = removedNodes.ToList();
-                DbContext.RemoveRange(removedAreasList);
-                removedAreasList.ForEach(a => { _areaCache.Remove(a.ObjId); });
-
-
-                await DbContext.SaveChangesAsync(true);
-                await transaction.CommitAsync();
-            }
-            catch (Exception e)
-            {
-                SystemLogger.Instance.LogError(e, "Could not save data");
-                await transaction.RollbackAsync();
-                throw;
-            }
-            finally
-            {
-                _areaCache.Clear();
-            }
-
-            return GetInstances();
+                catch (Exception e)
+                {
+                    _logger.LogError(e, "Could not save data");
+                    await transaction.RollbackAsync();
+                    throw;
+                }
+                finally
+                {
+                    _areaCache.Clear();
+                }
+                return GetInstances();
+            });
         }
 
        

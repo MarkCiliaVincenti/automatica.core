@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Automatica.Core.Base.Common;
 using Automatica.Core.EF.Models;
+using Automatica.Core.HyperSeries;
 using Automatica.Core.WebApi;
 using Automatica.Discovery;
 using Automatica.Push.Hubs;
@@ -24,12 +25,14 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.SignalR;
 using Automatica.Core.Push;
 using Automatica.Core.Internals;
-using Automatica.Core.Internals.Logger;
+using Automatica.Core.Logging;
 using Automatica.Core.Model.Models.User;
 using Microsoft.AspNetCore.ResponseCompression;
 using Automatica.Core.Runtime;
 using Automatica.Core.WebApi.Converter;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using MQTTnet.AspNetCore.Extensions;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
@@ -38,19 +41,22 @@ namespace Automatica.Core
 {
     public class Startup
     {
-        public Startup(IConfiguration configuration)
-        {
-            Configuration = configuration;
-        }
-
+       
         public IConfiguration Configuration { get; private set; }
+
+        public Startup(IConfiguration config)
+        {
+            Configuration = config;
+        }
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddMqttTcpServerAdapter();
 
+
             services.AddDbContext<AutomaticaContext>();
+            services.AddHyperSeries();
             services.AddResponseCompression(options =>
             {
                 options.Providers.Add<GzipCompressionProvider>();
@@ -69,12 +75,16 @@ namespace Automatica.Core
                 })
                 .AddJwtBearer(config =>
                 {
+                    var serverUid = ServerInfo.ServerUid.ToByteArray();
+                    var key = new byte[32];
+                    Array.Copy(serverUid, 0, key, 0, 16);
+                    Array.Copy(serverUid, 0, key, 16, 16);
                     config.RequireHttpsMetadata = false;
                     config.SaveToken = true;
                     config.TokenValidationParameters = new TokenValidationParameters
                     {
                         ValidateIssuerSigningKey = true,
-                        IssuerSigningKey = new SymmetricSecurityKey(ServerInfo.ServerUid.ToByteArray()),
+                        IssuerSigningKey = new SymmetricSecurityKey(key),
                         ValidateIssuer = false,
                         ValidateAudience = false
                     };
@@ -102,9 +112,6 @@ namespace Automatica.Core
                     };
                 });
 
-            services.Configure<MvcOptions>(options =>
-            {
-            });
             services.AddMvcCore(config => { config.Filters.Add(new AuthorizeFilter()); })
                 .AddAuthorization(options =>
                 {
@@ -125,7 +132,7 @@ namespace Automatica.Core
                 });
 
             services.AddControllers(options =>
-                options.Filters.Add(new HttpResponseExceptionFilter()));
+                options.Filters.Add(new HttpResponseExceptionFilter(SystemLogger.Instance)));
 
 
             services.Configure<FormOptions>(x =>
@@ -142,11 +149,15 @@ namespace Automatica.Core
 
             var builder = new ConfigurationBuilder()
                 .SetBasePath(ServerInfo.GetConfigDirectory())
-                .AddEnvironmentVariables()
-                .AddJsonFile("appsettings.json");
+                .AddJsonFile(ServerInfo.GetConfigFileName())
+                .AddDatabaseConfiguration()
+                .AddEnvironmentVariables();
 
-            Configuration = builder.Build();
+            var configRoot = builder.Build();
 
+            Configuration = configRoot;
+            services.AddSingleton(configRoot);
+            services.AddSingleton<IConfiguration>(configRoot);
 
             services.AddSingleton<IUserIdProvider, NameUserIdProvider>();
 
@@ -156,13 +167,23 @@ namespace Automatica.Core
             }).AddJsonProtocol(options =>
             {
             });
+            services.AddAutomaticaRemoteConnectWithFrp(a =>
+            {
+                a.UseWeb = true;
+                a.UseSsh = true;
+
+                a.ServerAddress = Configuration["server:remote_connect_url"];
+                a.ServerPort = 7000;
+                a.LocalIp = "127.0.0.1";
+                a.LocalPort = Convert.ToInt32(Configuration["server:port"]);
+            });
+
+
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, Microsoft.AspNetCore.Hosting.IWebHostEnvironment env)
         {
-            var port = ServerInfo.WebPort;
-
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
@@ -202,7 +223,8 @@ namespace Automatica.Core
                     options.ApplicationMaxBufferSize = 1024 * 1024;
                 });
                 endpoints.MapHub<TelegramHub>("/signalr/telegramHub");
-                endpoints.MapHub<UpdateHub>("/signalr/updateHub"); 
+                endpoints.MapHub<UpdateHub>("/signalr/updateHub");
+                endpoints.MapHub<LoggingHub>("/signalr/loggingHub");
 
                 endpoints.MapControllerRoute("webapi", "");
 
@@ -219,6 +241,7 @@ namespace Automatica.Core
                     await next();
                 }
             });
+
 
 
             if (Directory.Exists(wwwrootPath))

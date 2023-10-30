@@ -21,10 +21,13 @@ namespace Automatica.Core.EF.Models
             IsDeleted = false;
 
             Description = "";
+            WriteOnlyIfChanged = true;
         }
 
         [System.ComponentModel.DataAnnotations.Key]
         public Guid ObjId { get; set; }
+        public DateTimeOffset CreatedAt { get; set; }
+        public DateTimeOffset ModifiedAt { get; set; }
 
         public Guid? This2NodeTemplate { get; set; }
         public Guid? This2ParentNodeInstance { get; set; }
@@ -36,10 +39,14 @@ namespace Automatica.Core.EF.Models
         public bool IsWriteable { get; set; }
         public bool IsDeleted { get; set; }
 
+        public bool IsDisabled { get; set; }
+
         public bool UseInVisu { get; set; }
         public Guid? This2UserGroup { get; set; }
         public bool IsFavorite { get; set; }
         public int Rating { get; set; }
+
+        public bool WriteOnlyIfChanged { get; set; }
 
         public UserGroup This2UserGroupNavigation { get; set; }
 

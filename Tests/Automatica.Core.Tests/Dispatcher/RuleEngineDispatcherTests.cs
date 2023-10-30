@@ -3,9 +3,10 @@ using System.Linq;
 using System.Threading.Tasks;
 using Automatica.Core.Base.IO;
 using Automatica.Core.EF.Models;
-using Automatica.Core.Rule;
+using Automatica.Core.Logic;
 using Automatica.Core.Tests.Dispatcher.Utils;
 using Automatica.Core.UnitTests.Base.Common;
+using Moq;
 using Xunit;
 
 namespace Automatica.Core.Tests.Dispatcher
@@ -13,7 +14,7 @@ namespace Automatica.Core.Tests.Dispatcher
     public class RuleEngineDispatcherTests : BaseDispatcherTest
     {
 
-        public RuleEngineDispatcherTests() : base(DispatcherMock.Instance)
+        public RuleEngineDispatcherTests() : base(DispatcherMock.Instance, new Mock<IRemanentHandler>().Object)
         {
         }
 
@@ -38,7 +39,7 @@ namespace Automatica.Core.Tests.Dispatcher
 
             });
 
-            LogicEngineDispatcher.Load();
+            await LogicEngineDispatcher.Load();
 
             await Dispatcher.DispatchValue(source.Children[0], true);
             await Task.Delay(200);
@@ -46,8 +47,8 @@ namespace Automatica.Core.Tests.Dispatcher
             Assert.True(((DriverNodeMock) target.Children[0]).WriteReceived);
             var value = Dispatcher.GetValue(DispatchableType.NodeInstance, source.Children[0].Id);
 
-            Assert.IsType<bool>(value);
-            Assert.True((bool) value);
+            Assert.IsType<bool>(value.Value);
+            Assert.True((bool) value.Value);
         }
 
         [Fact]
@@ -73,7 +74,7 @@ namespace Automatica.Core.Tests.Dispatcher
                 };
             });
 
-            LogicEngineDispatcher.Load();
+            await LogicEngineDispatcher.Load();
 
             await Dispatcher.DispatchValue(source.Children[0], true);
             await Task.Delay(200);
@@ -81,8 +82,8 @@ namespace Automatica.Core.Tests.Dispatcher
             Assert.True(target.WriteReceived);
             var value = Dispatcher.GetValue(DispatchableType.NodeInstance, source.Children[0].Id);
 
-            Assert.IsType<bool>(value);
-            Assert.True((bool) value);
+            Assert.IsType<bool>(value.Value);
+            Assert.True((bool) value.Value);
         }
 
         [Fact]
@@ -112,16 +113,16 @@ namespace Automatica.Core.Tests.Dispatcher
                 a.This2RuleInterfaceInstanceOutput = outputInterface.ObjId;
             });
 
-            LogicEngineDispatcher.Load();
+            await LogicEngineDispatcher.Load();
 
-            await Dispatcher.DispatchValue(new RuleInterfaceInstanceDispatchable(outputInterface), true);
+            await Dispatcher.DispatchValue(new LogicInterfaceInstanceDispatchable(outputInterface), true);
             await Task.Delay(200);
 
             Assert.True(target.WriteReceived);
             var value = Dispatcher.GetValue(DispatchableType.RuleInstance, outputInterface.ObjId);
 
-            Assert.IsType<bool>(value);
-            Assert.True((bool) value);
+            Assert.IsType<bool>(value.Value);
+            Assert.True((bool) value.Value);
         }
 
 
@@ -151,16 +152,16 @@ namespace Automatica.Core.Tests.Dispatcher
                 };
             });
 
-            LogicEngineDispatcher.Load();
+            await LogicEngineDispatcher.Load();
 
-            await Dispatcher.DispatchValue(new RuleInterfaceInstanceDispatchable(outputInterface), true);
+            await Dispatcher.DispatchValue(new LogicInterfaceInstanceDispatchable(outputInterface), true);
             await Task.Delay(200);
 
             Assert.True(((DriverNodeMock) target.Children[0]).WriteReceived);
             var value = Dispatcher.GetValue(DispatchableType.RuleInstance, outputInterface.ObjId);
 
-            Assert.IsType<bool>(value);
-            Assert.True((bool) value);
+            Assert.IsType<bool>(value.Value);
+            Assert.True((bool) value.Value);
         }
 
     }

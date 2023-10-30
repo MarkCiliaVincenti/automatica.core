@@ -4,7 +4,6 @@ using System.Linq;
 using Automatica.Core.Base.Common;
 using Automatica.Core.EF.Models;
 using Automatica.Discovery;
-using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,6 +15,8 @@ using Serilog;
 using Automatica.Core.Internals;
 using System.Collections;
 using System.Security.Cryptography.X509Certificates;
+using Automatica.Core.Logging;
+using Microsoft.AspNetCore.Builder;
 
 namespace Automatica.Core
 {
@@ -26,7 +27,7 @@ namespace Automatica.Core
            
             var config = new ConfigurationBuilder()
                 .SetBasePath(ServerInfo.GetConfigDirectory())
-                .AddJsonFile("appsettings.json", false)
+                .AddJsonFile(ServerInfo.GetConfigFileName(), false)
                 .AddEnvironmentVariables()
                 .Build();
 
@@ -64,7 +65,7 @@ namespace Automatica.Core
                 //};
             }
 
-            var webHost = BuildWebHost(config["server:port"], config["server:ssl_port"]);
+            var webHost = BuildWebHost(args, config["server:port"], config["server:ssl_port"]);
 
             if (args.Length > 0 && args[0] == "develop")
             {
@@ -86,6 +87,11 @@ namespace Automatica.Core
             }
 
             logger.LogInformation($"Starting...Version {ServerInfo.GetServerVersion()}, Datetime {ServerInfo.StartupTime}. Running .NET Core Version {GetNetCoreVersion()}");
+
+            if (ServerInfo.InDocker)
+            {
+                logger.LogInformation($"Running in docker mode...");
+            }
 
             var db = webHost.Services.GetRequiredService<AutomaticaContext>();
             DatabaseInit.EnsureDatabaseCreated(webHost.Services);
@@ -119,62 +125,48 @@ namespace Automatica.Core
             logger.LogInformation("Stopped...");
         }
 
-        public static IWebHost BuildWebHost(string port, string sslPort)
+        public static WebApplication BuildWebHost(string[] args, string port, string sslPort)
         {
-            ServerInfo.WebPort = port; 
-            var configDir = new FileInfo(Assembly.GetEntryAssembly().Location).DirectoryName;
+            ServerInfo.WebPort = port;
+            ServerInfo.SslWebPort = sslPort; 
+            var configDir = new FileInfo(Assembly.GetEntryAssembly()!.Location).DirectoryName;
 
-            var webHost = WebHost.CreateDefaultBuilder()
-                .UseStartup<Startup>()
-                .UseKestrel(o => {
-
-                    if (!String.IsNullOrWhiteSpace(port))
-                    {
-                        o.ListenAnyIP(Convert.ToInt32(port));
-                    }
-
-                    if (!String.IsNullOrWhiteSpace(sslPort))
-                    {
-                        o.ListenAnyIP(Convert.ToInt32(sslPort), options =>
-                        {
-                            options.UseHttps(a =>
-                            {
-                                var x509Cert = new X509Certificate2(Path.Combine(configDir, "cert/certificate.pfx"),
-                                    "local");
-                                a.ServerCertificate = x509Cert;
-                            });
-                        });
-                    }
-                })
-                .ConfigureAppConfiguration(a =>
+            WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+            builder.Host.UseSerilog();
+            builder.WebHost.UseKestrel(o =>
+            {
+                if (!String.IsNullOrWhiteSpace(port))
                 {
-                    if (Directory.Exists(Path.Combine(configDir, "config")))
+                    o.ListenAnyIP(Convert.ToInt32(port));
+                }
+
+                if (!String.IsNullOrWhiteSpace(sslPort))
+                {
+                    o.ListenAnyIP(Convert.ToInt32(sslPort), options =>
                     {
-                        configDir = Path.Combine(configDir, "config");
-                    }
+                        options.UseHttps(a =>
+                        {
+                            var x509Cert = new X509Certificate2(Path.Combine(configDir!, "cert/certificate.pfx"),
+                                "local");
+                            a.ServerCertificate = x509Cert;
+                        });
+                    });
+                }
+            }).ConfigureAppConfiguration(a =>
+            {
+                a.SetBasePath(ServerInfo.GetConfigDirectory())
+                    .AddJsonFile(ServerInfo.GetConfigFileName(), false)
+                    .AddEnvironmentVariables()
+                    .AddDatabaseConfiguration();
+            });
+            
 
-                    a.SetBasePath(configDir);
-                    a.AddEnvironmentVariables();
-                    a.AddJsonFile("appsettings.json", true);
-                })
-                //.UseElectron(new string[])
-                .UseSerilog()
-                .ConfigureLogging(logging => {
-                    logging.AddFilter("Microsoft.AspNetCore.SignalR", LogLevel.Trace);
-                    logging.AddFilter("Microsoft.AspNetCore.Http.Connections", LogLevel.Trace);
-                }).ConfigureAppConfiguration((AutomaticaContext, config) => {
-                    config
-                        .SetBasePath(ServerInfo.GetConfigDirectory())
-                        .AddJsonFile("appsettings.json", false)
-                        .AddEnvironmentVariables();
-                });
+            var startup = new Startup(builder.Configuration);
+            startup.ConfigureServices(builder.Services);
 
-            //if (HybridSupport.IsElectronActive)
-            //{
-            //    ServerInfo.WebPort = "80";
-            //}
-
-            return webHost.Build();
+            WebApplication app = builder.Build();
+            startup.Configure(app, app.Environment);
+            return app;
         }
 
         public static string GetNetCoreVersion()

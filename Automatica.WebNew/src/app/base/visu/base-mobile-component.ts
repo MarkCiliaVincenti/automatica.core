@@ -18,6 +18,7 @@ export interface VisuObjectType {
     This2AreaInstanceNavigation: AreaInstance;
     This2CategoryInstanceNavigation: CategoryInstance;
 
+    VisuDisplayName: string;
     DisplayName: string;
     IsFavorite: boolean;
 }
@@ -94,7 +95,7 @@ export abstract class BaseMobileComponent extends BaseComponent {
     }
 
     public get displayText() {
-        return this.visuObjectType.DisplayName;
+        return this.visuObjectType.VisuDisplayName;
     }
 
     public get icon() {
@@ -171,18 +172,20 @@ export abstract class BaseMobileComponent extends BaseComponent {
 
         if (this.item) {
             this.propertyChanged();
-            this.value = this.dataHub.getCurrentValue(this.item.ObjId);
+            const value = this.dataHub.getCurrentValue(this.item.ObjId);;
+            if(value)
+                this.value = value.value;
         }
     }
 
-    protected propertyChanged() {
+    protected async propertyChanged() {
         const nodeProperty = this.getProperty("nodeInstance");
 
         if (!nodeProperty) {
             return;
         }
 
-        this.registerForItemValues(nodeProperty);
+        await this.registerForItemValues(nodeProperty);
     }
 
     public getPropertyValue(key: string) {
@@ -204,7 +207,8 @@ export abstract class BaseMobileComponent extends BaseComponent {
             if (this.subscribedNodeInstances.has(nodeId) && args[0] === 0) { // check if node instance and dispatchable type is correct
 
                 if (this._primaryNodeInstance === nodeId) {
-                    this.value = args[2];
+                    this.value = args[2].value;
+                    console.log("nodevalue dispatch: ", this.value);
                 }
                 await this.nodeValueReceived(nodeId, args[2]);
             }

@@ -16,6 +16,11 @@ import { LogicDefaultComponent } from "./logic-default/logic-default.component";
 import { RuleInstance } from "../../model/rule-instance";
 import { ToggleNodeComponent } from "./buttons/toggle/toggle.node.component";
 import { MediaPlayerComponent } from "./media-player/media-player.component";
+import { SliderComponent } from "./slider/slider.component";
+import { PushComponent } from "./buttons/push/push.component";
+import { GaugeComponent } from "./gauge/gauge.component";
+import { ThreeRangeGaugeComponent } from "./ThreeRangeGauge/three-range-gauge.component";
+import { ShutterComponent } from "./shutter/shutter.component";
 
 @Component({
   selector: "visu-component",
@@ -84,20 +89,41 @@ export class VisuItemComponent extends BaseComponent implements OnInit, OnDestro
         }
         break;
       }
+      case "slider": {
+        this.component = SliderComponent;
+        break;
+      }
       case "dimmer": {
         this.component = DimmerComponent;
         break;
-      } 
+      }
       case "media_player": {
         this.component = MediaPlayerComponent;
         break;
       }
+      case "push-button": {
+        this.component = PushComponent;
+        break;
+      }
+      case "gauge":{
+        this.component = GaugeComponent;
+        break;
+      }
+      case "three-range-gauge": {
+        this.component = ThreeRangeGaugeComponent;
+        break;
+      }
+      case "shutter": {
+        this.component = ShutterComponent;
+        break;
+      }
+      
       default: {
 
         if (this.item.type === VisuObjectSourceType.RuleInstance) {
           this.component = LogicDefaultComponent;
         } else {
-          this.component = DefaultComponent;
+          this.component = LabelComponent;
         }
         break;
       }

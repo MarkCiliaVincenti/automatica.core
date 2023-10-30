@@ -15,12 +15,15 @@ namespace Automatica.Core.EF.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "7.0.0");
+            modelBuilder.HasAnnotation("ProductVersion", "7.0.10");
 
             modelBuilder.Entity("Automatica.Core.EF.Models.Areas.AreaInstance", b =>
                 {
                     b.Property<Guid>("ObjId")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Description")
@@ -36,6 +39,9 @@ namespace Automatica.Core.EF.Migrations
 
                     b.Property<bool>("IsFavorite")
                         .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -71,6 +77,9 @@ namespace Automatica.Core.EF.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -86,6 +95,9 @@ namespace Automatica.Core.EF.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
                         .HasDefaultValue(true);
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -230,6 +242,9 @@ namespace Automatica.Core.EF.Migrations
                         .HasColumnType("TEXT")
                         .HasDefaultValue("rgba(255, 255, 255, 1)");
 
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -251,6 +266,9 @@ namespace Automatica.Core.EF.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
                         .HasDefaultValue(false);
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -309,6 +327,9 @@ namespace Automatica.Core.EF.Migrations
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(1024)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("Owner")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Type");
@@ -383,6 +404,9 @@ namespace Automatica.Core.EF.Migrations
                     b.Property<Guid>("ObjId")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -394,6 +418,9 @@ namespace Automatica.Core.EF.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
                         .HasDefaultValue(false);
+
+                    b.Property<bool>("IsDisabled")
+                        .HasColumnType("INTEGER");
 
                     b.Property<bool>("IsFavorite")
                         .HasColumnType("INTEGER");
@@ -410,6 +437,9 @@ namespace Automatica.Core.EF.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
                         .HasDefaultValue(false);
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -477,6 +507,9 @@ namespace Automatica.Core.EF.Migrations
                     b.Property<string>("VisuName")
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("WriteOnlyIfChanged")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("ObjId");
 
                     b.HasIndex("This2AreaInstance");
@@ -528,6 +561,9 @@ namespace Automatica.Core.EF.Migrations
             modelBuilder.Entity("Automatica.Core.EF.Models.NodeTemplate", b =>
                 {
                     b.Property<Guid>("ObjId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<bool>("DefaultCreated")
@@ -583,6 +619,9 @@ namespace Automatica.Core.EF.Migrations
                     b.Property<int>("MaxInstances")
                         .HasColumnType("INTEGER");
 
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(1024)
@@ -592,6 +631,9 @@ namespace Automatica.Core.EF.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<Guid>("NeedsInterface2InterfacesType")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("Owner")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid>("ProvidesInterface2InterfaceType")
@@ -670,10 +712,16 @@ namespace Automatica.Core.EF.Migrations
                     b.Property<Guid>("ObjId")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<bool>("IsDeleted")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
                         .HasDefaultValue(false);
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("TEXT");
 
                     b.Property<Guid?>("This2NodeInstance")
                         .HasColumnType("TEXT");
@@ -747,6 +795,9 @@ namespace Automatica.Core.EF.Migrations
                     b.Property<Guid>("ObjId")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("DefaultValue")
                         .HasMaxLength(1024)
                         .HasColumnType("TEXT");
@@ -790,6 +841,9 @@ namespace Automatica.Core.EF.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(1024)
@@ -799,6 +853,9 @@ namespace Automatica.Core.EF.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
                         .HasDefaultValueSql("1");
+
+                    b.Property<Guid?>("Owner")
+                        .HasColumnType("TEXT");
 
                     b.Property<Guid?>("This2NodeTemplate")
                         .HasColumnType("TEXT");
@@ -832,6 +889,9 @@ namespace Automatica.Core.EF.Migrations
                     b.Property<long>("ConstraintType")
                         .HasColumnType("INTEGER");
 
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -839,9 +899,15 @@ namespace Automatica.Core.EF.Migrations
                         .HasColumnType("TEXT")
                         .HasDefaultValue("");
 
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(1024)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("Owner")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid>("This2PropertyTemplate")
@@ -863,15 +929,24 @@ namespace Automatica.Core.EF.Migrations
                     b.Property<long>("ConditionType")
                         .HasColumnType("INTEGER");
 
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<double>("Factor")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("REAL")
                         .HasDefaultValue(1.0);
 
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<double>("Offset")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("REAL")
                         .HasDefaultValue(0.0);
+
+                    b.Property<Guid?>("Owner")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("PropertyKey")
                         .HasColumnType("TEXT");
@@ -917,6 +992,9 @@ namespace Automatica.Core.EF.Migrations
                     b.Property<Guid>("ObjId")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Description")
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(1024)
@@ -930,6 +1008,9 @@ namespace Automatica.Core.EF.Migrations
 
                     b.Property<bool>("IsFavorite")
                         .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -1012,10 +1093,16 @@ namespace Automatica.Core.EF.Migrations
                     b.Property<Guid>("ObjId")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<bool>("IsDeleted")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
                         .HasDefaultValue(false);
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("TEXT");
 
                     b.Property<Guid>("This2RuleInstance")
                         .HasColumnType("TEXT");
@@ -1046,6 +1133,9 @@ namespace Automatica.Core.EF.Migrations
                     b.Property<Guid>("ObjId")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("DefaultValue")
                         .HasColumnType("TEXT");
 
@@ -1068,9 +1158,15 @@ namespace Automatica.Core.EF.Migrations
                     b.Property<int>("MaxLinks")
                         .HasColumnType("INTEGER");
 
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(1024)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("Owner")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("ParameterDataType")
@@ -1099,6 +1195,9 @@ namespace Automatica.Core.EF.Migrations
                     b.Property<Guid>("ObjId")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -1110,6 +1209,9 @@ namespace Automatica.Core.EF.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
                         .HasDefaultValue(false);
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -1158,6 +1260,9 @@ namespace Automatica.Core.EF.Migrations
                     b.Property<Guid>("ObjId")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -1178,9 +1283,15 @@ namespace Automatica.Core.EF.Migrations
                         .HasMaxLength(1024)
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(1024)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("Owner")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid>("This2DefaultMobileVisuTemplate")
@@ -1204,6 +1315,9 @@ namespace Automatica.Core.EF.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Group")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT")
@@ -1222,7 +1336,16 @@ namespace Automatica.Core.EF.Migrations
                         .HasColumnType("TEXT")
                         .HasDefaultValue("");
 
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("NeedsReloadOnChange")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("Order")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ReloadContext")
                         .HasColumnType("INTEGER");
 
                     b.Property<long>("Type")
@@ -1258,7 +1381,13 @@ namespace Automatica.Core.EF.Migrations
                     b.Property<string>("ClientKey")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Description")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Name")
@@ -1524,6 +1653,9 @@ namespace Automatica.Core.EF.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -1534,6 +1666,9 @@ namespace Automatica.Core.EF.Migrations
                     b.Property<string>("Key")
                         .IsRequired()
                         .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Name")
@@ -1567,6 +1702,9 @@ namespace Automatica.Core.EF.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -1582,6 +1720,9 @@ namespace Automatica.Core.EF.Migrations
                     b.Property<string>("Key")
                         .IsRequired()
                         .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Name")
@@ -1600,6 +1741,9 @@ namespace Automatica.Core.EF.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -1615,6 +1759,9 @@ namespace Automatica.Core.EF.Migrations
                     b.Property<string>("LastName")
                         .IsRequired()
                         .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Password")
@@ -1673,12 +1820,18 @@ namespace Automatica.Core.EF.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(1024)
                         .HasColumnType("TEXT")
                         .HasDefaultValue("");
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Name")
                         .IsRequired()

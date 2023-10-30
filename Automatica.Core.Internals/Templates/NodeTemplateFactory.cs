@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using Automatica.Core.Base.Templates;
-using Automatica.Core.Driver;
 using Automatica.Core.EF.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -14,7 +13,7 @@ namespace Automatica.Core.Internals.Templates
     {
         private readonly INodeInstanceService _nodeInstanceService;
 
-        public NodeTemplateFactory(AutomaticaContext database, IConfiguration config, INodeInstanceService nodeInstanceService, IDriverFactory factory) : base (database, config, (template, guid) => template.This2NodeTemplate = guid, factory)
+        public NodeTemplateFactory(ILogger<NodeTemplateFactory> logger, AutomaticaContext database, IConfiguration config, INodeInstanceService nodeInstanceService) : base (logger, database, config, (template, guid) => template.This2NodeTemplate = guid)
         {
             _nodeInstanceService = nodeInstanceService;
         }
@@ -138,7 +137,13 @@ namespace Automatica.Core.Internals.Templates
                 isNewObject = true;
                 retValue = CreateTemplateCode.Created;
             }
-           
+            if (interfaceType.Owner.HasValue && interfaceType.Owner != Owner && !AllowOwnerOverride)
+            {
+                throw new ArgumentException("You are not allowed to modify this template...");
+            }
+
+            interfaceType.Owner = Owner;
+
             interfaceType.Name = name;
             interfaceType.Description = description;
             interfaceType.MaxChilds = maxChilds;
@@ -186,6 +191,13 @@ namespace Automatica.Core.Internals.Templates
                     nodeTemplate.ObjId = uid;
                     retValue = CreateTemplateCode.Created;
                 }
+                if (nodeTemplate.Owner.HasValue && nodeTemplate.Owner != Owner && !AllowOwnerOverride)
+                {
+                    throw new ArgumentException("You are not allowed to modify this template...");
+                }
+
+                nodeTemplate.Owner = Owner;
+
 
                 nodeTemplate.FactoryReference = Factory.FactoryGuid;
                 nodeTemplate.Name = name;
@@ -217,7 +229,7 @@ namespace Automatica.Core.Internals.Templates
             }
             catch (Exception e)
             {
-                SystemLogger.Instance.LogError($"Could not create node template {uid}-{name}.{key} {e}");
+                Logger.LogError($"Could not create node template {uid}-{name}.{key} {e}");
 
                 throw;
             }

@@ -8,12 +8,12 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Automatica.Core.Driver.Utility.Network;
 using Rssdp;
-using Automatica.Core.Internals;
 
 namespace Automatica.Discovery
 {
     public class DiscoveryService : IHostedService
     {
+        private readonly ILogger<DiscoveryService> _logger;
         public string AutomaticaUuid { get;}
         private readonly SsdpDeviceLocator _deviceLocator;
 
@@ -26,8 +26,9 @@ namespace Automatica.Discovery
         private readonly int _port;
         public SsdpRootDevice Device { get; private set; }
 
-        public DiscoveryService()
+        public DiscoveryService(ILogger<DiscoveryService> logger)
         {
+            _logger = logger;
             try
             {
                 _publisher = new SsdpDevicePublisher();
@@ -43,9 +44,8 @@ namespace Automatica.Discovery
             }
             catch (Exception e)
             {
-                SystemLogger.Instance.LogError($"Could not init SSDP Publisher {e}");
+                _logger.LogError($"Could not init SSDP Publisher {e}");
             }
-      
         }
 
         public Task StartAsync(CancellationToken cancellationToken)

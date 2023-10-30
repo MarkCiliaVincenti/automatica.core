@@ -8,12 +8,17 @@ namespace Automatica.Core.Internals.License
     public interface ILicenseContext : ILicenseContract
     {
         Task<bool> Init();
+        void DecrementDriverCount(int count);
 
         IList<IValidationFailure> ValidationErrors { get; }
 
         bool IsLicensed { get; }
         int MaxDataPoints { get; }
         int MaxUsers { get; }
+        bool AllowRemoteControl { get; }
+        int MaxRemoteTunnels { get; }
+        long MaxRecordingDataPoints { get; }
+        int MaxSatellites { get; }
 
         Task<string> GetLicense();
         Task SaveLicense(string license);

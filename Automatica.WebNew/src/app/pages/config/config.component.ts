@@ -80,13 +80,12 @@ export class ConfigComponent extends BaseComponent implements OnInit, OnDestroy 
 
   }
 
-  async save($event) {
+  async reload($event) {
     try {
       this.isLoading = true;
-      await this.configTree.save();
+      await this.configTree.reload();
     } catch (error) {
-      this.notify.notifyError(error);
-      throw error;
+      //ignore error, we will not receive any callback!
     }
     this.isLoading = false;
   }
@@ -105,7 +104,7 @@ export class ConfigComponent extends BaseComponent implements OnInit, OnDestroy 
 
   async fileUploaded($event) {
     this.isLoading = true;
-    await this.configTree.fileUploaded($event.item, $event.file.name);
+    await this.configTree.fileUploaded($event.item, $event.file.name, $event.password);
     this.isLoading = false;
   }
 

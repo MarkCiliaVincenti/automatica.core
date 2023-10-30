@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Automatica.Core.Base.License;
 using Automatica.Core.EF.Models;
@@ -13,34 +14,36 @@ namespace Automatica.Core.Driver.Loader
         private readonly IDriverStore _driverStore;
         private readonly ILicenseContract _licenseContract;
 
-        public DriverFactoryLoader(ILogger logger, IDriverNodesStore driverNodeStore, IDriverStore driverStore, ILicenseContract licenseContract)
+        public DriverFactoryLoader(ILogger<DriverFactoryLoader> logger, IDriverNodesStore driverNodeStore, IDriverStore driverStore, ILicenseContract licenseContract)
         {
             _logger = logger;
             _driverNodeStore = driverNodeStore;
             _driverStore = driverStore;
             _licenseContract = licenseContract;
         }
-        public Task<IDriver> LoadDriverFactory(NodeInstance nodeInstance, IDriverFactory factory, IDriverContext context)
+        public async Task<IDriver> LoadDriverFactory(NodeInstance nodeInstance, IDriverFactory factory, IDriverContext context, CancellationToken token = default)
         {
             var driver = factory.CreateDriver(context);
 
             nodeInstance.State = NodeInstanceState.Loaded;
             try
             {
-                if (driver.BeforeInit())
+                if (await driver.BeforeInit(token))
                 {
                     _driverStore.Add(driver.Id, driver);
                     nodeInstance.State = NodeInstanceState.Initialized;
-                    driver.Configure();
+                    await driver.Configure(token);
                 }
                 else
                 {
+                    nodeInstance.Error = driver.Error;
                     nodeInstance.State = NodeInstanceState.UnknownError;
                 }
             }
             catch (Exception e)
             {
                 _logger.LogError(e, $"Error initialize driver {factory.DriverName} {e}");
+                nodeInstance.Error = e.ToString();
                 nodeInstance.State = NodeInstanceState.UnknownError;
             }
 
@@ -52,7 +55,7 @@ namespace Automatica.Core.Driver.Loader
 
 
             AddDriverRecursive(driver, driver);
-            return Task.FromResult(driver);
+            return driver;
         }
 
         private void AddDriverRecursive(IDriver root, IDriverNode driver)
@@ -65,12 +68,10 @@ namespace Automatica.Core.Driver.Loader
             {
                 _driverNodeStore.AddChild(root, dr);
 
-                _licenseContract.IncrementDriverCount();
-
                 if (_licenseContract.DriverLicenseCountExceeded())
                 {
                     _logger.LogError("Cannot instantiate more data-points, license exceeded");
-                    return;
+                    continue;
                 }
 
                 AddDriverRecursive(root, dr);

@@ -4,8 +4,9 @@ using System.Threading.Tasks;
 using Automatica.Core.Base.BoardType;
 using Automatica.Core.Base.Localization;
 using Automatica.Core.EF.Models;
+using Automatica.Core.Internals.Cache.Logic;
 using Automatica.Core.Internals.Templates;
-using Automatica.Core.Rule;
+using Automatica.Core.Logic;
 using Automatica.Core.Runtime.Abstraction.Plugins;
 using Automatica.Core.Runtime.Abstraction.Plugins.Logic;
 using Microsoft.Extensions.Configuration;
@@ -21,8 +22,17 @@ namespace Automatica.Core.Runtime.Core.Plugins.Logics
         private readonly IConfiguration _config;
         private readonly ILoadedStore _store;
         private readonly ILogicFactoryStore _logicFactoryStore;
+        private readonly ILogicTemplateCache _logicTemplateCache;
+        private readonly TemplateFactoryProvider<LogicTemplateFactory> _logicTemplateFactory;
 
-        public LogicLoader(ILogger<LogicLoader> logger, AutomaticaContext dbContext, ILocalizationProvider localizationProvider, IConfiguration config, ILoadedStore store, ILogicFactoryStore logicFactoryStore)
+        public LogicLoader(ILogger<LogicLoader> logger, 
+            AutomaticaContext dbContext, 
+            ILocalizationProvider localizationProvider, 
+            IConfiguration config, 
+            ILoadedStore store, 
+            ILogicFactoryStore logicFactoryStore, 
+            ILogicTemplateCache logicTemplateCache,
+            TemplateFactoryProvider<LogicTemplateFactory> logicTemplateFactory)
         {
             _logger = logger;
             _dbContext = dbContext;
@@ -30,9 +40,11 @@ namespace Automatica.Core.Runtime.Core.Plugins.Logics
             _config = config;
             _store = store;
             _logicFactoryStore = logicFactoryStore;
+            _logicTemplateCache = logicTemplateCache;
+            _logicTemplateFactory = logicTemplateFactory;
         }
 
-        public Task Load(IRuleFactory factory, IBoardType boardType)
+        public async Task Load(ILogicFactory factory, IBoardType boardType)
         {
             try
             {
@@ -46,45 +58,53 @@ namespace Automatica.Core.Runtime.Core.Plugins.Logics
 
                 _store.Add(manifest.Automatica.PluginGuid, manifest);
 
-                _logicFactoryStore.Add(factory.RuleGuid, factory);
-                _logger.LogDebug($"Init logic {factory.RuleName} {factory.RuleVersion}...");
+                _logicFactoryStore.Add(factory.LogicGuid, factory);
+                _logger.LogDebug($"Init logic {factory.LogicName} {factory.LogicVersion}...");
 
                 var driverDbVersion =
-                    _dbContext.VersionInformations.SingleOrDefault(a => a.RuleGuid == factory.RuleGuid);
+                    _dbContext.VersionInformations.SingleOrDefault(a => a.RuleGuid == factory.LogicGuid);
                 var initNodeTemplates = false;
 
                 if (driverDbVersion == null)
                 {
                     driverDbVersion = new VersionInformation
                     {
-                        Name = factory.RuleName,
-                        Version = factory.RuleVersion.ToString(),
-                        RuleGuid = factory.RuleGuid
+                        Name = factory.LogicName,
+                        Version = factory.LogicVersion.ToString(),
+                        RuleGuid = factory.LogicGuid
                     };
                     initNodeTemplates = true;
                     _dbContext.VersionInformations.Add(driverDbVersion);
                 }
-                else if (factory.RuleVersion > driverDbVersion.VersionData)
+                else if (factory.LogicVersion > driverDbVersion.VersionData)
                 {
                     initNodeTemplates = true;
-                    driverDbVersion.Name = factory.RuleName;
-                    driverDbVersion.Version = factory.RuleVersion.ToString();
+                    driverDbVersion.Name = factory.LogicName;
+                    driverDbVersion.Version = factory.LogicVersion.ToString();
                 }
 
                 _localizationProvider.LoadFromAssembly(factory.GetType().Assembly);
                 if (initNodeTemplates || factory.InDevelopmentMode)
                 {
-                    _logger.LogDebug($"InitRuleTemplates for {factory.RuleName}...");
+                    _logger.LogDebug($"Init logic templates for {factory.LogicName}...");
 
-                    using (var db = new AutomaticaContext(_config))
+                    var logicTemplateFactory = _logicTemplateFactory.CreateInstance(factory.LogicGuid);
+
+                    logicTemplateFactory.SetFactory(factory);
+
+                    factory.InitTemplates(logicTemplateFactory);
+
+                    foreach (var template in logicTemplateFactory.LogicTemplates.Values)
                     {
-                        factory.InitTemplates(new RuleTemplateFactory(db, _config, factory));
-                        db.SaveChanges();
+                        _logicTemplateCache.AddOrUpdate(template);
                     }
-                    _logger.LogDebug($"InitRuleTemplates for {factory.RuleName}...done");
+
+                    await logicTemplateFactory.CommitChanges();
+
+                    _logger.LogDebug($"InitRuleTemplates for {factory.LogicName}...done");
                 }
 
-                _dbContext.SaveChanges(true);
+                await _dbContext.SaveChangesAsync(true);
             }
             catch (NoManifestFoundException)
             {
@@ -92,9 +112,8 @@ namespace Automatica.Core.Runtime.Core.Plugins.Logics
             }
             catch (Exception e)
             {
-                _logger.LogError($"Could not load Rule {factory.RuleName} {e}", e);
+                _logger.LogError($"Could not load Rule {factory.LogicName} {e}", e);
             }
-            return Task.CompletedTask;
             ;
         }
     }

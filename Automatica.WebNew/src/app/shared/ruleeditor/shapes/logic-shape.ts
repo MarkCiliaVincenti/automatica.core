@@ -2,39 +2,109 @@ import { RuleInstance } from "src/app/base/model/rule-instance";
 import { RuleInterfaceInstance } from "src/app/base/model/rule-interface-instance";
 import { NodeInstance2RulePage } from "src/app/base/model/node-instance-2-rule-page";
 import { LinkService } from "../link.service";
-import { RuleEngineService } from "src/app/services/ruleengine.service";
+import { LogicEngineService, LogicUpdateScope } from "src/app/services/logicengine.service";
 import { ILogicErrorHandler } from "../ilogicErrorHandler";
-
-declare var draw2d: any;
-declare var $: any;
+import { LogicShapeValueLocator } from "./logic-shape-value-locator";
+import { ILogicInfoHandler } from "../ilogicInfoHandler";
+declare let draw2d: any;
+declare let $: any;
 
 export class LogicShapes {
-    public static addShape(logic, ruleEngineService: RuleEngineService, errorHandler: ILogicErrorHandler) {
+    public static addShape(logic, ruleEngineService: LogicEngineService, errorHandler: ILogicErrorHandler, infoHandler: ILogicInfoHandler) {
+
+        logic.LogicInfoHeader = draw2d.shape.icon.Talkq.extend({
+            init: function (attr, setter, getter) {
+                this._super($.extend({}, attr), setter, getter);
+
+                this.on("click", () => {
+                    infoHandler.showInfoForLogic(logic);
+                });
+            }
+
+        
+        });
+
+        logic.LogicHeader = draw2d.shape.layout.FlexGridLayout.extend({
+            text: void 0,
+
+            init: function (attr, setter, getter) {
+                this._super($.extend({
+                    columns: "90px, 10px",
+                    rows: "grow",
+                    valign: "center",
+                    bgColor: "#457987",
+                    stroke: 0
+                }, attr),
+                    setter,
+                    getter);
+
+                this.classLabel = new logic.Label({
+                    text: this.text,
+                    stroke: 0,
+                    fontColor: "#000000",
+                    bgColor: "#457987",
+                    radius: this.getRadius(),
+                    padding: 5,
+                    resizeable: false,
+                    minWidth: 90,
+                    fontSize: 10
+                });
+
+                this.add(this.classLabel,
+                    {
+                        row: 0, col: 0,
+                        valign: "center",
+                    });
+                // this.add(new logic.LogicInfoHeader(
+                //     {
+                //         width: 10,
+                //         height: 10,
+                //         bgColor: "#457987",
+                //         padding: 5,
+                //     }
+                // ), {
+                //     row: 0, col: 1,
+                //     valign: "center",
+                // });
+            },
+
+            setText: function setText(text) {
+                this.classLabel.setText(text);
+            }
+        });
+
 
         logic.LogicShape = draw2d.shape.layout.VerticalLayout.extend({
             init: function (attr, element: RuleInstance, linkService: LinkService) {
                 if (element.Y < 0) {
                     element.Y *= -1;
-                } if (element.X < 0) {
+                }
+                if (element.X < 0) {
                     element.X *= -1;
                 }
-                this._super($.extend({ id: element.key, bgColor: "#d7d7d7", alpha: 1, color: "#325862", stroke: 0, radius: 0, x: element.X, y: element.Y, keepAspectRatio: false }, attr));
+                this._super($.extend(
+                    {
+                        id: element.key,
+                        bgColor: "#d7d7d7",
+                        alpha: 1,
+                        color: "#325862",
+                        stroke: 0,
+                        radius: 0,
+                        x: element.X,
+                        y: element.Y,
+                        keepAspectRatio: false,
+                        resizeable: false,
+                        height: 25
+                    }, attr));
 
                 this.setUserData(element);
 
-                this.classLabel = new logic.Label({
-                    text: element.Name,
-                    stroke: 0,
-                    fontColor: "#000000",
-                    bgColor: "#457987",
-                    radius: this.getRadius(),
-                    padding: 10,
-                    resizeable: true,
-                    minWidth: 150
-                });
+
+                this.headerLayout = new logic.LogicHeader();
+                this.headerLayout.setText(element.Name);
 
                 element.onNameChanged.subscribe((v) => {
-                    this.classLabel.setText(v);
+                    this.headerLayout.setText(v);
                 });
 
                 const translatedName = linkService.translate.translate(element.RuleTemplateName);
@@ -44,9 +114,11 @@ export class LogicShapes {
                     fontColor: "#000000",
                     bgColor: "#d7d7d7",
                     radius: this.getRadius(),
-                    padding: 10,
+                    padding: 5,
                     resizeable: true,
-                    minWidth: 150
+                    minWidth: 100,
+                    fontSize: 8,
+                    height: 20
                 });
 
 
@@ -57,14 +129,14 @@ export class LogicShapes {
 
                 this.on("dragEnd", async (context, data) => {
                     try {
-                        await ruleEngineService.updateItem(element);
+                        await ruleEngineService.updateItem(element, LogicUpdateScope.Drag);
                     }
-                    catch(error) {
+                    catch (error) {
                         errorHandler.notifyError(error);
                     }
                 });
 
-                this.add(this.classLabel);
+                this.add(this.headerLayout);
                 this.add(this.logicName);
 
                 this.add(new logic.PortShape({}, element, this, linkService));
@@ -75,7 +147,7 @@ export class LogicShapes {
                         return this.classLabel.cachedMinWidth;
                     }
                 }
-                return 150;
+                return 100;
             },
             onDragEnd(x, y, shiftKey, ctrlKey) {
                 this._super();
@@ -139,8 +211,9 @@ export class LogicShapes {
                         radius: 0,
                         bgColor: null,
                         fontColor: "#4a4a4a",
-                        resizeable: true,
-                        padding: 5
+                        resizeable: false,
+                        padding: { top: 5, right: isInput ? 0 : 10, bottom: 5, left: isInput ? 7 : 5 },
+                        fontSize: 8
                     }, isInput ? 0 : 1, this.realParent);
 
                     let port = void 0;
@@ -149,22 +222,58 @@ export class LogicShapes {
                         port = this.createPort("input", new logic.LogicInputPortLocator(this.realParent, label));
                         port.setName(portInstance.PortId);
                         port.setConnectionDirection(3);
+                        port.setDiameter(8);
                     } else {
                         port = this.createPort("output", new logic.LogicOutputPortLocator(this.realParent, label));
                         port.setName(portInstance.PortId);
                         port.setConnectionDirection(1);
+                        port.setDiameter(8);
+
+                        let dataLabel = new draw2d.shape.basic.Label({
+                            text: portInstance.PortValue,
+                            textLength: "100%",
+                            stroke: 0,
+                            radius: 0,
+                            bgColor: null,
+                            padding: 5,
+                            paddingLeft: 10,
+                            paddingRight: 10,
+                            fontColor: "lightgray",
+                            fontSize: 9,
+                            resizeable: true
+                        });
+
+                        portInstance.notifyChangeEvent.subscribe((v) => {
+                            if (v.propertyName === "PortValue") {
+                                dataLabel.setText((<any>v.object).PortValue);
+                            }
+                        });
+
+                        port.add(dataLabel, new LogicShapeValueLocator({ marginBottom: 12, marginRight: 10 }));
+
                     }
 
                     port.setMaxFanOut(portInstance.FromMaxLinks);
                     port.setUserData(portInstance);
 
                     port.on("connect", async function (emitterPort, connection) {
-                        await LinkService.handleOnConnection(linkService, port, connection, isInput, portInstance, ruleEngineService);
+                        try {
+                            await LinkService.handleOnConnection(linkService, port, connection, isInput, portInstance, ruleEngineService);
+                        }
+                        catch (error) {
+                            errorHandler.notifyError(error);
+                        }
 
                     });
 
                     port.on("disconnect", async function (emitterPort, connection) {
-                        await LinkService.handleOnDisconnection(linkService, connection, isInput);
+                        try {
+                            await LinkService.handleOnDisconnection(linkService, connection, isInput);
+                        }
+                        catch (error) {
+
+                            errorHandler.notifyError(error);
+                        }
                     });
 
                     data.push(label);
@@ -180,14 +289,15 @@ export class LogicShapes {
 
 
             init: function (attr, element: NodeInstance2RulePage, linkService: LinkService) {
+                this.tooltip = null;
+                this.element = element;
+
                 if (element.Y < 0) {
                     element.Y *= -1;
                 } if (element.X < 0) {
                     element.X *= -1;
                 }
-                this._super($.extend({ id: element.key, bgColor: "#EEEEEE", alpha: 1, color: "#000000", stroke: 1, radius: 0, x: element.X, y: element.Y, keepAspectRatio: false, minWidth: 150 }, attr));
-
-                this.setMinWidth(100);
+                this._super($.extend({ id: element.key, bgColor: "#EEEEEE", alpha: 1, color: "#000000", stroke: 1, radius: 0, x: element.X, y: element.Y, keepAspectRatio: false, minWidth: 80 }, attr));
 
                 this.setUserData(element);
                 this.label = new draw2d.shape.basic.Label({
@@ -200,16 +310,18 @@ export class LogicShapes {
                     paddingLeft: 10,
                     paddingRight: 10,
                     fontColor: "#4a4a4a",
-                    resizeable: true
+                    resizeable: false,
+                    fontSize: 10,
+                    minWidth: 80
                 });
 
-                element.NodeInstance.notifyChangeEvent.subscribe((v) =>{
-                    if(v.propertyName === "Name") {
-                        this.label.setText((<any>v.object).Name);
-                    }
-                });
-
-                this.label.setMinWidth(100);
+                if (element.NodeInstance) {
+                    element.NodeInstance.notifyChangeEvent.subscribe((v) => {
+                        if (v.propertyName === "Name") {
+                            this.label.setText((<any>v.object).Name);
+                        }
+                    });
+                }
 
                 if (element.Inputs.length > 0) {
                     const input = this.createPort("input");
@@ -217,12 +329,23 @@ export class LogicShapes {
                     input.setId(element.Inputs[0].PortId);
 
                     input.on("connect", async function (emitterPort, connection) {
-                        await LinkService.handleOnConnection(linkService, input, connection, true, element, ruleEngineService);
+                        try {
+                            await LinkService.handleOnConnection(linkService, input, connection, true, element, ruleEngineService);
+                        }
+                        catch (error) {
+                            errorHandler.notifyError(error);
+                        }
 
                     });
 
                     input.on("disconnect", async function (emitterPort, connection) {
-                        await LinkService.handleOnDisconnection(linkService, connection, true);
+                        try {
+                            await LinkService.handleOnDisconnection(linkService, connection, true);
+                        }
+                        catch (error) {
+
+                            errorHandler.notifyError(error);
+                        }
                     });
                 }
                 if (element.Outputs.length > 0) {
@@ -231,24 +354,82 @@ export class LogicShapes {
                     output.setName(element.Outputs[0].PortId);
                     output.setId(element.Outputs[0].PortId);
 
+                    let dataLabel = new draw2d.shape.basic.Label({
+                        text: "",
+                        textLength: "100%",
+                        stroke: 0,
+                        radius: 0,
+                        bgColor: null,
+                        padding: 5,
+                        paddingLeft: 10,
+                        paddingRight: 10,
+                        fontColor: "lightgray",
+                        fontSize: 9,
+                        resizeable: false
+                    });
+
+                    if (element.NodeInstance) {
+                        element.NodeInstance.notifyChangeEvent.subscribe((v) => {
+                            if (v.propertyName === "Value") {
+                                dataLabel.setText((<any>v.object).Value);
+                            }
+                        });
+                    }
+                    output.add(dataLabel, new LogicShapeValueLocator({ marginBottom: 12, marginRight: 10 }));
+
+
                     output.on("connect", async function (emitterPort, connection) {
-                        await LinkService.handleOnConnection(linkService, output, connection, false, element, ruleEngineService);
+                        try {
+                            await LinkService.handleOnConnection(linkService, output, connection, false, element, ruleEngineService);
+                        }
+                        catch (error) {
+
+                            errorHandler.notifyError(error);
+                        }
                     });
 
                     output.on("disconnect", async function (emitterPort, connection) {
-                        await LinkService.handleOnDisconnection(linkService, connection, false);
+                        try {
+                            await LinkService.handleOnDisconnection(linkService, connection, false);
+                        }
+                        catch (error) {
+
+                            errorHandler.notifyError(error);
+                        }
                     });
                 }
+
+                this.on("mouseenter", () => {
+                    this.showTooltip();
+                });
+                this.on("mouseleave", () => {
+                    this.hideTooltip()
+                });
+                this.on("dragstart", () => {
+                    this.hideTooltip()
+                });
+
+                this.label.on("mouseenter", () => {
+                    this.showTooltip();
+                });
+                this.label.on("mouseleave", () => {
+                    this.hideTooltip()
+                });
+                this.label.on("dragstart", () => {
+                    this.hideTooltip()
+                });
 
                 this.on("move", (context) => {
                     element.X = context.x;
                     element.Y = context.y;
+
+                    this.hideTooltip();
                 });
 
 
                 this.on("dragEnd", async (context, data) => {
                     try {
-                        await ruleEngineService.updateItem(element);
+                        await ruleEngineService.updateItem(element, LogicUpdateScope.Drag);
                     } catch (error) {
                         errorHandler.notifyError(error);
                     }
@@ -260,15 +441,43 @@ export class LogicShapes {
             },
             getMinWidth() {
                 if (this.label) {
-                    return Math.max(this.label.cachedMinWidth, 100);;
+                    return Math.max(this.label.cachedMinWidth, 80);
                 }
-                return 100;
+                return 80;
             },
             onDragEnd(x, y, shiftKey, ctrlKey) {
                 this._super();
 
                 this.fireEvent("dragEnd", { x: x, y: y });
 
+            },
+            showTooltip: function () {
+                this.tooltip = $('<div class="tooltip">' + this.element.FullName + '</div>')
+                    .appendTo('body');
+                this.positionTooltip();
+            },
+
+            positionTooltip: function () {
+                if (this.tooltip === null) {
+                    return
+                }
+
+                var width = this.tooltip.outerWidth(true)
+                var pos = this.canvas.fromCanvasToDocumentCoordinate(
+                    this.getAbsoluteX() + this.getWidth() / 2 - width / 2 + 8,
+                    this.getAbsoluteY() + this.getHeight() + 10)
+
+                // remove the scrolling part from the tooltip because the tooltip is placed
+                // inside the scrolling container
+                pos.x += this.canvas.getScrollLeft()
+                pos.y += this.canvas.getScrollTop()
+
+                this.tooltip.css({ 'top': pos.y, 'left': pos.x })
+            }, hideTooltip: function () {
+                if (this.tooltip !== null) {
+                    this.tooltip.remove();
+                    this.tooltip = null;
+                }
             }
         });
 

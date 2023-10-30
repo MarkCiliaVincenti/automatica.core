@@ -9,6 +9,10 @@ COPY ./Automatica.WebNew /src
 
 RUN ls -lah /src
 
+RUN npm config set "@fortawesome:registry" https://npm.fontawesome.com/
+RUN npm config set "//npm.fontawesome.com/:_authToken" $FONTAWESOME_TOKEN
+
+
 RUN npm install
 RUN npm run build-docker
 
@@ -46,14 +50,29 @@ RUN automatica-cli InstallLatestPlugins -I /app/plugins -M $VERSION -A $CLOUD_AP
 
 RUN rm -rf /src
 
+RUN apt update
+RUN apt install curl -y
+
+RUN curl -L -o frp.tgz https://github.com/fatedier/frp/releases/download/v0.51.3/frp_0.51.3_linux_arm.tar.gz
+RUN tar xvzf frp.tgz
+RUN mkdir -p frp
+RUN mv frp_*/* frp/
+
 FROM automaticacore/automatica-plugin-runtime:arm32v7-7 AS runtime
 WORKDIR /app/
 
+ARG VERSION
+ENV AUTOMATICA_VERSION=$VERSION
+
 COPY --from=build /app/ ./
+COPY --from=build /app/frp /app/frp
+
+COPY ./Automatica.Core/frp/* /app/automatica/frp/
+
 VOLUME /app/plugins
 
 EXPOSE 1883/tcp
-EXPOSE 5001/tcp
+EXPOSE 5000-6000
 ENV AUTOMATICA_PLUGIN_DIR=/app/plugins
 
 # Build runtime image

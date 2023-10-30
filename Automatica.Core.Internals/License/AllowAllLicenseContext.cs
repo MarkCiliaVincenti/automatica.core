@@ -17,10 +17,20 @@ namespace Automatica.Core.Internals.License
             return Task.FromResult(true);
         }
 
+        public void DecrementDriverCount(int count)
+        {
+            
+        }
+
         public IList<IValidationFailure> ValidationErrors => new List<IValidationFailure>();
         public bool IsLicensed => true;
         public int MaxDataPoints => int.MaxValue;
         public int MaxUsers => int.MaxValue;
+        public bool AllowRemoteControl => false;
+        public int MaxRemoteTunnels => 0;
+        public long MaxRecordingDataPoints => long.MaxValue;
+        public int MaxSatellites => int.MaxValue;
+
         public bool DriverLicenseCountExceeded()
         {
             return false;

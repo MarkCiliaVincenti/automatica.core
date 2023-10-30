@@ -22,8 +22,11 @@ namespace Automatica.Core.Base.Common
         public const string LogicsDirectory = "Rules";
         public const string PluginUpdateDirectoryName = "Automatica.Core.Plugins";
 
+
+        public const int ExitCodeRestart = 1;
         public const int ExitCodeUpdateInstall = 2;
         public const int ExitCodePluginUpdateInstall = 3;
+        public const int ExitCodeUpdateInstallDocker = 4;
 
 
         public const string SelfSlaveId = "172bb906-b584-4d5d-85e8-b6d881498534";
@@ -77,6 +80,18 @@ namespace Automatica.Core.Base.Common
 
         public static bool IsConnectedToCloud { get; set; }
 
+        public static string GetConfigFileName()
+        {
+            var appSettingsName = Environment.GetEnvironmentVariable("AUTOMATICA_CONFIG_FILE");
+
+            if (String.IsNullOrEmpty(appSettingsName))
+            {
+                return "appsettings.json";
+            }
+
+            return appSettingsName;
+        }
+
         public static string Rid
         {
             get
@@ -118,10 +133,11 @@ namespace Automatica.Core.Base.Common
         /// Gets the web port
         /// </summary>
         public static string WebPort { get; set; }
+        public static string SslWebPort { get; set; }
 
         public static IBoardType BoardType { get; set; }
 
-        public static bool InDocker => Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true";
+        public static bool InDocker => Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER")?.ToLowerInvariant() == "true" || Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINERS")?.ToLowerInvariant() == "true";
 
 
         /// <summary>

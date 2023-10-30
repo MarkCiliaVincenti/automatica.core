@@ -41,9 +41,13 @@ export const navigation = [
         path: "plugins",
         icon: "plug"
     }, {
-        text: "COMMON.SLAVES",
-        path: "slaves",
+        text: "COMMON.SATELLITES",
+        path: "satellites",
         icon: "satellite-dish"
+    }, {
+        text: "COMMON.LOGS",
+        path: "logs",
+        icon: "file-lines"
     }];
 
     /*{

@@ -7,9 +7,11 @@ import { DesignTimeDataService } from "./design-time-data.service";
 import { NodeTemplate } from "../base/model/node-template";
 import { NodeInstance } from "../base/model/node-instance";
 import { PropertyInstance } from "../base/model/property-instance";
+import { LearnNodeInstance } from "../shared/propertyeditor/propertyeditor.component";
 
 @Injectable()
 export class ConfigService extends BaseService {
+
 
 
     constructor(http: HttpClient, pRouter: Router, translationService: L10nTranslationService, private designData: DesignTimeDataService) {
@@ -45,8 +47,8 @@ export class ConfigService extends BaseService {
         return super.postMultiple<NodeInstance>("nodeInstancesV2/scan", node.toJson());
     }
 
-    import(node: NodeInstance, fileName: string): Promise<NodeInstance[]> {
-        return super.postMultiple<NodeInstance>("nodeInstancesV2/import/", { Node: node.toJson(), FileName: fileName });
+    import(node: NodeInstance, fileName: string, password: string): Promise<NodeInstance[]> {
+        return super.postMultiple<NodeInstance>("nodeInstancesV2/import/", { Node: node.toJson(), FileName: fileName, Password: password });
     }
     read(node: NodeInstance): Promise<any> {
         return super.postJson("nodeInstances/read", node.toJson());
@@ -62,7 +64,6 @@ export class ConfigService extends BaseService {
         }
         return super.postMultiple<NodeInstance>("nodeInstances", data);
     }
-
     async add(nodeInstance: NodeInstance): Promise<NodeInstance> {
         return await super.put<NodeInstance>("nodeInstancesV2/add", nodeInstance.toJson());
     }

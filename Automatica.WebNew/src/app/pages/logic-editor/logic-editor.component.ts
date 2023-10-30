@@ -2,7 +2,7 @@ import { Component, OnInit, ViewChild, OnDestroy, ChangeDetectionStrategy, Chang
 import { RulePage } from "src/app/base/model/rule-page";
 import { ConfigTreeComponent } from "src/app/shared/config-tree/config-tree.component";
 import { UserGroup } from "src/app/base/model/user/user-group";
-import { RuleEngineService } from "src/app/services/ruleengine.service";
+import { LogicEngineService } from "src/app/services/logicengine.service";
 import { ConfigService } from "src/app/services/config.service";
 import { L10nTranslationService } from "angular-l10n";
 import { AreaService } from "src/app/services/areas.service";
@@ -23,6 +23,8 @@ import { DataHubService } from "src/app/base/communication/hubs/data-hub.service
 import { RuleInstance } from "src/app/base/model/rule-instance";
 import { NodeInstanceService } from "src/app/services/node-instance.service";
 import DataSource from "devextreme/data/data_source";
+import { DxListComponent, DxPopupComponent } from "devextreme-angular";
+import { ActivatedRoute, ActivatedRouteSnapshot, Router } from "@angular/router";
 
 @Component({
   selector: "app-logic-editor",
@@ -44,12 +46,19 @@ export class LogicEditorComponent extends BaseComponent implements OnInit, OnDes
   @ViewChild("configTree")
   configTree: ConfigTreeComponent;
 
+  @ViewChild("logicPagesList")
+  logicPageList: DxListComponent;
+
+  @ViewChild("infoPopup")
+  popupLearnMode: DxPopupComponent;
+
   areaInstances: AreaInstance[] = [];
   categoryInstances: CategoryInstance[] = [];
   userGroups: UserGroup[] = [];
 
+  public infoPopupVisible: boolean = false;
 
-  constructor(private ruleEngineService: RuleEngineService,
+  constructor(private ruleEngineService: LogicEngineService,
     private configService: ConfigService,
     private notify: NotifyService,
     translate: L10nTranslationService,
@@ -59,12 +68,38 @@ export class LogicEditorComponent extends BaseComponent implements OnInit, OnDes
     appService: AppService,
     private dataHub: DataHubService,
     private nodeInstanceService: NodeInstanceService,
-    private changeRef: ChangeDetectorRef) {
+    private changeRef: ChangeDetectorRef,
+    private route: ActivatedRoute,
+    private router: Router) {
     super(notify, translate, appService);
 
     appService.setAppTitle("RULEENGINE.NAME");
   }
 
+  onPopupHiding($event) {
+    this.infoPopupVisible = false;
+  }
+
+  async ngOnInit() {
+
+    await this.loadData();
+
+    const pageId = this.route.snapshot.params["id"];
+    this.selectLogicPageById(pageId);
+    const that = this;
+
+    super.registerEvent(this.ruleEngineService.showInfo, async (a) => {
+      this.infoPopupVisible = true;
+      this.changeRef.detectChanges();
+      await this.popupLearnMode.instance.show();
+    });
+
+    this.route.params.subscribe(async (params) => {
+      that.selectLogicPageById(params.id);
+    });
+
+    this.baseOnInit();
+  }
   async load() {
     await this.loadData();
   }
@@ -105,19 +140,11 @@ export class LogicEditorComponent extends BaseComponent implements OnInit, OnDes
           this.nodeInstanceService.load()
         ]);
 
-      this.pages = pages;
-      this.pages = this.pages.sort((n1, n2) => {
-        if (n1.Name > n2.Name) {
-          return 1;
-        }
-        if (n1.Name < n2.Name) {
-          return -1;
-        }
-        return 0;
-      });
+      this.pages = this.sortPages(pages);;
+
 
       this.pagesDataSource = new DataSource({
-        paginate: false, 
+        paginate: false,
         pageSize: 1000,
         load: (loadOptions) => {
           return new Promise((resolve, reject) => {
@@ -153,14 +180,43 @@ export class LogicEditorComponent extends BaseComponent implements OnInit, OnDes
     this.changeRef.detectChanges();
   }
 
+  private sortPages(pages) {
+    return pages.sort((n1, n2) => {
+      if (n1.Name > n2.Name) {
+        return 1;
+      }
+      if (n1.Name < n2.Name) {
+        return -1;
+      }
+      return 0;
+    });
+
+  }
+
   validate($event) {
     this.configTree.validate($event);
+
+    // this.sortPages();
   }
-  async ngOnInit() {
 
-    await this.loadData();
-    this.baseOnInit();
 
+  private selectLogicPageById(id: string) {
+    if (!id) {
+      return;
+    }
+
+    const page = this.pages.filter(a => a.ObjId == id);
+
+    if (page.length == 0) {
+      return;
+    }
+    this.selectLogicPage(page[0]);
+  }
+
+  private selectLogicPage(page: RulePage) {
+    this.configTree.selectNodeById(void 0);
+    this.selectedPage = page;
+    this.selectedItem = page;
   }
 
   onImportData($event) {
@@ -196,23 +252,20 @@ export class LogicEditorComponent extends BaseComponent implements OnInit, OnDes
 
   onTabSelectionChanged($event) {
     if ($event.addedItems && $event.addedItems.length > 0) {
-      this.configTree.selectNodeById(void 0);
-      this.selectedItem = <RulePage>$event.addedItems[0];
-      this.selectedPage = this.selectedItem;
+      const selectedPage = <RulePage>$event.addedItems[0];
+      this.router.navigate(["../", selectedPage.ObjId], { relativeTo: this.route });
     }
   }
 
-  async save() {
+  async restart() {
     this.isLoading = true;
 
     try {
       await this.ruleEngineService.reload();
-      this.notify.notifySuccess("COMMON.SAVED");
-
     } catch (error) {
-      this.notify.notifyError(error);
-      throw error;
+      //ignore error, we will not receive any callback!
     }
+    this.notify.notifySuccess("COMMON.RELOAD");
     this.isLoading = false;
   }
 
@@ -257,7 +310,7 @@ export class LogicEditorComponent extends BaseComponent implements OnInit, OnDes
 
   async fileUploaded($event) {
     this.isLoading = true;
-    await this.configTree.fileUploaded($event.item, $event.file.name);
+    await this.configTree.fileUploaded($event.item, $event.file.name, $event.password);
     this.isLoading = false;
   }
 
@@ -278,6 +331,9 @@ export class LogicEditorComponent extends BaseComponent implements OnInit, OnDes
       await this.ruleEngineService.removePage(currentPage);
 
       this.pages = this.pages.filter(a => a.ObjId != currentPage.ObjId);
+      this.logicPageList.selectedItems = [];
+
+      await this.pagesDataSource.reload();
       this.changeRef.detectChanges();
     } catch (error) {
       this.handleError(error);
@@ -299,7 +355,15 @@ export class LogicEditorComponent extends BaseComponent implements OnInit, OnDes
     try {
       await this.ruleEngineService.addPage(rulePage);
       this.pages.push(rulePage);
+
+      this.selectedPage = rulePage;
+      this.selectedItem = rulePage;
+
+      this.logicPageList.selectedItems = [rulePage];
+
+      await this.pagesDataSource.reload();
       this.changeRef.detectChanges();
+
     } catch (error) {
       this.handleError(error);
       await this.load();
@@ -345,5 +409,16 @@ export class LogicEditorComponent extends BaseComponent implements OnInit, OnDes
 
   saveLearnedNodes($event: any) {
     this.configTree.saveLearnNodeInstances($event.nodeInstance, $event.learnedNodes);
+  }
+
+  onZoomIn($event) {
+    this.selectedPage.onZoomIn.emit();
+    
+  }
+  onZoomOut($event) {  
+    this.selectedPage.onZoomOut.emit();
+  }
+  onZoomToView($event) {
+    this.selectedPage.onZoomToView.emit();
   }
 }

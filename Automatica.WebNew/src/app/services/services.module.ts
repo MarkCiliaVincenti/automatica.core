@@ -2,7 +2,7 @@ import { NgModule } from "@angular/core";
 import { CommonModule } from "@angular/common";
 
 import { ConfigService } from "./config.service"
-import { RuleEngineService } from "./ruleengine.service"
+import { LogicEngineService } from "./logicengine.service"
 import { PingService } from "./ping.service";
 import { DataService } from "./data.service";
 import { DesignTimeDataService } from "./design-time-data.service";
@@ -10,7 +10,7 @@ import { CategoryService } from "./categories.service";
 import { AreaService } from "./areas.service";
 import { LoginService } from "./login.service";
 import { NotifyService } from "./notify.service";
-import { RuleInstanceVisuService } from "./rule-visu.service";
+import { LogicInstanceVisuService } from "./logic-visu.service";
 import { ServerStateService } from "./server-state.service";
 import { SettingsService } from "./settings.service";
 import { ModelDecoratorService } from "./model-decorator.service";
@@ -22,9 +22,11 @@ import { LicenseService } from "./license.service";
 import { SystemService } from "./system.service";
 import { PluginsService } from "./plugins.service";
 import { AppService } from "./app.service";
-import { SlavesService } from "./slaves.services";
+import { SatelliteService } from "./satellite.services";
 import { NodeInstanceService } from "./node-instance.service";
 import { NodeTemplateService } from "./node-template.service";
+import { LogsService } from "./logs.service";
+import { HyperSeriesService } from "./hyperseries.service";
 
 @NgModule({
   imports: [
@@ -41,8 +43,8 @@ import { NodeTemplateService } from "./node-template.service";
     LoginService,
     NotifyService,
     PingService,
-    RuleInstanceVisuService,
-    RuleEngineService,
+    LogicInstanceVisuService,
+    LogicEngineService,
     ServerStateService,
     SettingsService,
     ModelDecoratorService,
@@ -54,8 +56,10 @@ import { NodeTemplateService } from "./node-template.service";
     SystemService,
     PluginsService,
     AppService,
-    SlavesService,
-    NodeTemplateService
+    SatelliteService,
+    NodeTemplateService,
+    LogsService,
+    HyperSeriesService
 
   ]
 })

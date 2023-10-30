@@ -18,6 +18,8 @@ import { DesignTimeDataService } from "src/app/services/design-time-data.service
 import { NodeInstanceService } from "src/app/services/node-instance.service";
 import { NodeTemplateService } from "src/app/services/node-template.service";
 import { DataService } from "src/app/services/data.service";
+import { NodeDataTypeEnum } from "src/app/base/model/node-data-type";
+import { WindowState } from "src/app/base/model/window-state";
 
 @Component({
   selector: "p3-config-tree",
@@ -27,6 +29,9 @@ import { DataService } from "src/app/services/data.service";
 
 })
 export class ConfigTreeComponent extends BaseComponent implements OnInit, OnDestroy {
+
+  NodeDataTypeEnum: typeof NodeDataTypeEnum = NodeDataTypeEnum
+  WindowState: typeof WindowState = WindowState;
 
   NodeInstanceState: typeof NodeInstanceState = NodeInstanceState;
   expandedRowKeys: any[] = ["b0"];
@@ -154,10 +159,10 @@ export class ConfigTreeComponent extends BaseComponent implements OnInit, OnDest
     this.appService.isLoading = false;
   }
 
-  public async fileUploaded(nodeInstance: NodeInstance, fileName: string) {
+  public async fileUploaded(nodeInstance: NodeInstance, fileName: string, password: string) {
     try {
       this.appService.isLoading = true;
-      await this.configService.import(nodeInstance, fileName);
+      await this.configService.import(nodeInstance, fileName, password);
       await this.load();
 
     } catch (error) {
@@ -333,7 +338,7 @@ export class ConfigTreeComponent extends BaseComponent implements OnInit, OnDest
   }
 
 
-  public async save() {
+  public async reload() {
     this.notify.notifySuccess("COMMON.RELOADED");
     this.configService.reload();
     this.selectNode(void 0);
@@ -405,7 +410,9 @@ export class ConfigTreeComponent extends BaseComponent implements OnInit, OnDest
       const parentDrag = this.nodeInstanceService.getNodeInstance(drag.ParentId);
       parentDrag.Children = parentDrag.Children.filter(a => a.ObjId != drag.ObjId);
 
-      drag.setParent(drop);
+      //drag.setParent(drop);
+      // const contains = drop.Children.filter(a => a.ObjId == drag.ObjId);
+      // if(contains.length == 0)
       drop.Children = [...drop.Children, drag];
       drag.This2ParentNodeInstance = drop.ObjId;
 
@@ -413,7 +420,7 @@ export class ConfigTreeComponent extends BaseComponent implements OnInit, OnDest
 
       this.appService.isLoading = true;
       this.tree.instance.refresh();
-      await this.configService.update(drop);
+      await this.configService.update(drag);
       this.appService.isLoading = false;
     }
   }
@@ -484,6 +491,7 @@ export class ConfigTreeComponent extends BaseComponent implements OnInit, OnDest
       items.push({ text: this.translate.translate("COMMON.COPY"), data: nodeInstance, onItemClick: function () { that.copyItem = nodeInstance; } });
 
 
+
       if (this.copyItem && nodeInstance.NodeTemplate.ProvidesInterface2InterfaceType === this.copyItem.NodeTemplate.NeedsInterface2InterfacesType) {
         items.push({ text: this.translate.translate("COMMON.PASTE"), data: nodeInstance, onItemClick: function () { that.copy(that.copyItem, nodeInstance); } });
       }
@@ -495,6 +503,7 @@ export class ConfigTreeComponent extends BaseComponent implements OnInit, OnDest
       if (nodeInstance.NodeTemplate.This2NodeDataType > 0 && !nodeInstance.isNewObject) {
         items.push({ beginGroup: true, text: this.translate.translate("COMMON.READ"), data: nodeInstance, onItemClick: function () { that.readNode(nodeInstance); } });
       }
+      items.push({ beginGroup: true, text: this.translate.translate("COMMON.COPY_VALUE"), data: nodeInstance, onItemClick: function () { navigator.clipboard.writeText(nodeInstance.Value); } });
     }
 
     this.contextMenu.instance.option({ items: items, target: $event.event });
@@ -528,8 +537,43 @@ export class ConfigTreeComponent extends BaseComponent implements OnInit, OnDest
     }
   }
 
-  async saveLearnNodeInstances(nodeInstance: NodeInstance, learnedNodes: LearnNodeInstance[]) {
-    // for (const learnNode of learnedNodes) {
+  async saveLearnNodeInstances(parentNodeInstance: NodeInstance, learnedNodes: LearnNodeInstance[]) {
+
+    try {
+      this.isLoading = true;
+
+      for (const learnNode of learnedNodes) {
+        var nodeInstance = await this.configService.createFromTemplate(parentNodeInstance, learnNode.nodeTemplateItem);
+
+        for (const prop of learnNode.propertyInstances) {
+          var property = nodeInstance.Properties.find(a => a.PropertyTemplate.Key == prop.PropertyTemplate.Key);
+          if (property) {
+            property.Value = prop.Value;
+          }
+        }
+
+        for (const child of nodeInstance.Children) {
+          for (const prop of learnNode.propertyInstances) {
+            var property = child.Properties.find(a => a.PropertyTemplate.Key == prop.PropertyTemplate.Key);
+            if (property) {
+              property.Value = prop.Value;
+            }
+          }
+        }
+
+        await this.configService.update(nodeInstance);
+
+      }
+
+      await this.load();
+    }
+    catch (error) {
+      this.handleError(error);
+    }
+    finally {
+
+      this.isLoading = false;
+    }
     //   let existingNode = this.nodeInstanceService.getNodeInstanceByNeedsInterface(nodeInstance, learnNode.nodeTemplateInstance.nodeTemplate.NeedsInterface2InterfacesType);
 
     //   let created = void 0;

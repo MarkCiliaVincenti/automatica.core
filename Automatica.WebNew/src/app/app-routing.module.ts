@@ -17,7 +17,9 @@ import { LoginFormComponent } from "./shared/components/login-form/login-form.co
 import { AreasEtsImportComponent } from "./pages/area-config/areas-ets-import/areas-ets-import.component";
 import { VisualizationComponent } from "./visualization/visualization.component";
 import { Role } from "./base/model/user/role";
-import { SlaveConfigComponent } from "./pages/slave-config/slave-config.component";
+import { SatelliteConfigComponent } from "./pages/satellite-config/satellite-config.component";
+import { NodeInstanceImportComponent } from "./shared/propertyeditor/node-instance-ets-import/node-instance-import.component";
+import { LogsComponent } from "./pages/logs/logs.component";
 
 const routes: Routes = [
     {
@@ -37,8 +39,12 @@ const routes: Routes = [
             }, {
                 path: "config",
                 component: ConfigComponent
-            }, {
-                path: "logic-editor",
+            }, 
+            {
+                path: "logic-editor", redirectTo: "logic-editor/default", pathMatch: "full"
+            },
+            {
+                path: "logic-editor/:id",
                 component: LogicEditorComponent
             }, {
                 path: "visualisation",
@@ -77,8 +83,11 @@ const routes: Routes = [
                 path: "plugins",
                 component: PluginsComponent
             }, {
-                path: "slaves",
-                component: SlaveConfigComponent
+                path: "satellites",
+                component: SatelliteConfigComponent
+            }, {
+                path: "logs",
+                component: LogsComponent
             }]
     },
     {

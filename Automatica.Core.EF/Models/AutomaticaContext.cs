@@ -7,6 +7,7 @@ using System.Reflection;
 using Automatica.Core.EF.Models.Areas;
 using Automatica.Core.EF.Models.Categories;
 using System;
+using Automatica.Core.EF.Interceptors;
 using Automatica.Core.Model.Models.User;
 using Automatica.Core.EF.Models.Trendings;
 using Microsoft.Extensions.Logging;
@@ -114,6 +115,7 @@ namespace Automatica.Core.EF.Models
                     case "mariadb":
                         ConfigureMariaDatabase(optionsBuilder, loggerInstance);
                         break;
+                        break;
                     case "memory":
                         optionsBuilder.UseInMemoryDatabase("automatica");
                         loggerInstance.LogInformation($"Using MemoryDatabase provider...");
@@ -146,12 +148,15 @@ namespace Automatica.Core.EF.Models
                 logger.LogWarning($"Using connection string from appsettings.json because to environment variable is defined");
             }
             var serverVersion = new MySqlServerVersion(new Version(8, 0, 27));
-            optionsBuilder.UseMySql(mariaDbConString, serverVersion);
+            optionsBuilder.UseMySql(mariaDbConString, serverVersion, a =>
+            {
+                a.CommandTimeout(300);
+                a.EnableRetryOnFailure(3);
+            }).AddInterceptors(new LogQueryTimeInterceptor(logger));
         }
 
         private void ConfigureSqLiteDatabase(DbContextOptionsBuilder optionsBuilder, ILogger logger)
         {
-
             logger.LogInformation($"Using SQLite database engine...");
             string conString = Configuration.GetConnectionString("AutomaticaDatabaseSqlite");
             var sqliteConBuilder = new SqliteConnectionStringBuilder(conString);
@@ -164,7 +169,8 @@ namespace Automatica.Core.EF.Models
             {
                 File.Copy(dbInitFile, dbFile);
             }
-            optionsBuilder.UseSqlite(conString);
+
+            optionsBuilder.UseSqlite(conString).AddInterceptors(new LogQueryTimeInterceptor(logger));
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -981,7 +987,7 @@ namespace Automatica.Core.EF.Models
                 entity.Property(e => e.DefaultPage);
 
                 entity.HasIndex(e => e.This2VisuPageType)
-                    .HasName("This2VisuPageType");
+                    .HasDatabaseName("This2VisuPageType");
 
                 entity.Property(a => a.Height).HasDefaultValue(4).IsRequired();
                 entity.Property(a => a.Width).HasDefaultValue(6).IsRequired();

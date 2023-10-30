@@ -15,6 +15,7 @@ using System.Net.Http;
 using System.Net.Http.Formatting;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
+using Automatica.Core.Base.Tunneling;
 using Automatica.Core.Internals.Cloud.Exceptions;
 using Automatica.Core.Internals.Plugins;
 
@@ -26,11 +27,30 @@ namespace Automatica.Core.Internals.Cloud
         public string Version { get; set; }
         public Guid ServerGuid { get; set; }
     }
-
+    public class RemoteConnectObject
+    {
+        public string TunnelUrl { get; set; }
+        public string SubDomain { get; set; }
+    }
+    public class RemoteConnectPortResponse
+    {
+        public int Port { get; set; }
+    }
+    public class CreateRemoteConnectPortObject
+    {
+        public Guid DriverId { get; set; }
+        public string ServiceName { get; set; }
+        public string TunnelingProtocol { get; set; }
+    }
+    public class CreateRemoteConnectObject
+    {
+        public string TargetSubDomain { get; set; }
+    }
     public class CloudApi : ICloudApi
     {
         private readonly IConfiguration _config;
         private readonly IPluginInstaller _pluginInstaller;
+        private readonly ILogger<CloudApi> _logger;
         private const string UpdateFileName = "Automatica.Core.Update.zip";
 
         public event EventHandler<DownloadProgressChangedEventArgs> DownloadUpdateProgressChanged;
@@ -40,10 +60,11 @@ namespace Automatica.Core.Internals.Cloud
         private const string WebApiVersion = "v2";
         private const string WebApiPrefix = "webapi";
         
-        public CloudApi(IConfiguration config, IPluginInstaller pluginInstaller)
+        public CloudApi(IConfiguration config, IPluginInstaller pluginInstaller, ILogger<CloudApi> logger)
         {
             _config = config;
             _pluginInstaller = pluginInstaller;
+            _logger = logger;
         }
 
         private string GetUrl()
@@ -93,14 +114,96 @@ namespace Automatica.Core.Internals.Cloud
         }
 
 
+        public async Task<RemoteConnectObject> CreateRemoteConnectUrl(string subDomain)
+        {
+            try
+            {
+                var remoteConnectObj = new CreateRemoteConnectObject
+                {
+                    TargetSubDomain = subDomain
+                };
+                return await PostRequest<RemoteConnectObject>($"/{WebApiPrefix}/{WebApiVersion}/coreServerData/createRemoteConnect", remoteConnectObj);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Could not say hi to cloud api");
+                return null;
+            }
+        }
+
+        public async Task<RemoteConnectObject> CreateRemoteConnectUrl(Guid pluginGuid, string subDomain)
+        {
+            try
+            {
+                var remoteConnectObj = new CreateRemoteConnectObject
+                {
+                    TargetSubDomain = subDomain
+                };
+                return await PostRequest<RemoteConnectObject>($"/{WebApiPrefix}/{WebApiVersion}/coreServerData/createRemoteConnect/{pluginGuid}", remoteConnectObj);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Could not say hi to cloud api");
+                return null;
+            }
+        }
+
+        public async Task<RemoteConnectPortResponse> GetRemoteConnectPort(Guid pluginGuid, string serviceName, TunnelingProtocol tunnelingProtocol)
+        {
+            try
+            {
+                var remoteConnectObj = new CreateRemoteConnectPortObject
+                {
+                    DriverId = pluginGuid,
+                    ServiceName = serviceName,
+                    TunnelingProtocol =  tunnelingProtocol.ToString().ToLowerInvariant()
+                };
+                return await PostRequest<RemoteConnectPortResponse>($"/{WebApiPrefix}/{WebApiVersion}/coreServerData/createRemoteConnectPort", remoteConnectObj);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Could not say hi to cloud api");
+                return null;
+            }
+        }
+
+        public async Task<bool> SendRemoteConnectUrl(string url)
+        {
+            try
+            {
+                var remoteConnectObj = new RemoteConnectObject
+                {
+                    TunnelUrl = url
+                };
+                await PostRequest<object>($"/{WebApiPrefix}/{WebApiVersion}/coreServerData/remoteConnect", remoteConnectObj);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Could not say hi to cloud api");
+                return false;
+            }
+            return true;
+        }
+
         public Task<ServerVersion> CheckForUpdates()
         {
             return GetRequest<ServerVersion>($"/{WebApiPrefix}/{WebApiVersion}/coreServerData/checkForUpdates/{ServerInfo.Rid}/{ServerInfo.GetServerVersion()}/{GetCloudEnvironmentType()}");
         }
 
+        public Task<ServerDockerVersion> CheckForDockerUpdates()
+        {
+            return GetRequest<ServerDockerVersion>($"/{WebApiPrefix}/{WebApiVersion}/coreServerData/checkForDockerUpdates/{GetCloudEnvironmentType()}/{ServerInfo.GetServerVersion()}");
+        }
+
         public Task<IList<Plugin>> GetLatestPlugins()
         {
             return GetRequest<IList<Plugin>>($"/{WebApiPrefix}/{WebApiVersion}/coreServerData/plugins/{ServerInfo.GetServerVersion()}/{GetCloudEnvironmentType()}");
+        }
+
+
+        public Task<string> GetLicense()
+        {
+            return GetRequest<string>($"/{WebApiPrefix}/{WebApiVersion}/coreServerData/license");
         }
 
         public async Task<bool> SayHelloToCloud(SayHelloData sayHi)
@@ -111,7 +214,7 @@ namespace Automatica.Core.Internals.Cloud
             }
             catch(Exception e)
             {
-                SystemLogger.Instance.LogError(e, "Could not say hi to cloud api");
+                _logger.LogError(e, "Could not say hi to cloud api");
                 return false;
             }
             return true;
@@ -130,7 +233,7 @@ namespace Automatica.Core.Internals.Cloud
             }
             catch (Exception e)
             {
-                SystemLogger.Instance.LogError(e, "Could not say hi to cloud api");
+                _logger.LogError(e, "Could not say hi to cloud api");
                 return false;
             }
             return true;
@@ -144,7 +247,7 @@ namespace Automatica.Core.Internals.Cloud
             }
             catch(Exception e)
             {
-                SystemLogger.Instance.LogError(e, "Could not ping cloud uri");
+                _logger.LogError(e, "Could not ping cloud uri");
                 return false;
             }
             return true;
@@ -170,7 +273,7 @@ namespace Automatica.Core.Internals.Cloud
                     if (x.IsFaulted)
                         throw x.Exception;
 
-                    SystemLogger.Instance.LogTrace($"Received {x.Result} from {apiUrl}");
+                    _logger.LogTrace($"Received {x.Result} from {apiUrl}");
                     result = JsonConvert.DeserializeObject<T>(x.Result);
                 });
             }
@@ -180,7 +283,7 @@ namespace Automatica.Core.Internals.Cloud
             }
             catch (Exception e)
             {
-                SystemLogger.Instance.LogError(e, "Could not execute get request to cloud");
+                _logger.LogError(e, "Could not execute get request to cloud");
             }
 
             return result;
@@ -189,20 +292,20 @@ namespace Automatica.Core.Internals.Cloud
         public async Task<T> PostRequest<T>(string apiUrl, object postObject) where T : class
         {
             T result = null;
-            using (var client = SetupClient())
+            using var client = SetupClient();
+            var url = GetUrl();
+            var apiKey = GetApiKey();
+            var response = await client.PostAsync(new Uri(new Uri(url), apiUrl + "/" + apiKey), postObject, new JsonMediaTypeFormatter()).ConfigureAwait(false);
+
+            response.EnsureSuccessStatusCode();
+
+            await response.Content.ReadAsStringAsync().ContinueWith(x =>
             {
-                var response = await client.PostAsync(new Uri(new Uri(GetUrl()), apiUrl + "/" + GetApiKey()), postObject, new JsonMediaTypeFormatter()).ConfigureAwait(false);
+                if (x.IsFaulted)
+                    throw x.Exception;
 
-                response.EnsureSuccessStatusCode();
-
-                await response.Content.ReadAsStringAsync().ContinueWith(x =>
-                {
-                    if (x.IsFaulted)
-                        throw x.Exception;
-
-                    result = JsonConvert.DeserializeObject<T>(x.Result);
-                });
-            }
+                result = JsonConvert.DeserializeObject<T>(x.Result);
+            });
 
             return result;
         }
@@ -223,9 +326,16 @@ namespace Automatica.Core.Internals.Cloud
             }
         }
 
-        public async Task<FileInfo> DownloadUpdate(ServerVersion update)
+        public async Task<FileInfo> DownloadUpdate(IServerVersion update)
         {
-            var file = await DownloadFile(update.AzureUrl);
+            if (update.Type != nameof(ServerVersion))
+            {
+                throw new ArgumentException("Invalid type...");
+            }
+
+            var updateServerVersion = (ServerVersion)update;
+
+            var file = await DownloadFile(updateServerVersion.AzureUrl);
 
             var tmpFile = Path.Combine(ServerInfo.GetTempPath(), UpdateFileName);
             await using(var stream = new FileStream(tmpFile, FileMode.OpenOrCreate))

@@ -34,7 +34,7 @@ namespace Automatica.Core.Tests.Dispatcher
                 ((DriverNodeMock)driverMock2.Children[0]).WriteValue(a, b);
             });
 
-            await DispatcherMock.Instance.DispatchValue(driverMock, true);
+            await DispatcherMock.Instance.DispatchValue(driverMock, true, DispatchValueSource.Read);
             await Task.Delay(200);
 
             Assert.True(((DriverNodeMock)driverMock2.Children[0]).WriteReceived);
@@ -44,12 +44,12 @@ namespace Automatica.Core.Tests.Dispatcher
         public async Task TryGetValue()
         {
             var driverMock = await DispatcherHelperUtils.CreateNodeMock(Guid.NewGuid(), "MockName", DispatcherMock.Instance);
-            await DispatcherMock.Instance.DispatchValue(driverMock, true);
+            await DispatcherMock.Instance.DispatchValue(driverMock, true, DispatchValueSource.Read);
 
             var value = DispatcherMock.Instance.GetValue(DispatchableType.NodeInstance, driverMock.Id);
 
-            Assert.IsType<bool>(value);
-            Assert.True((bool)value);
+            Assert.IsType<bool>(value.Value);
+            Assert.True((bool)value.Value);
         }
 
 
@@ -57,7 +57,7 @@ namespace Automatica.Core.Tests.Dispatcher
         public async Task TryGetValues()
         {
             var driverMock = await DispatcherHelperUtils.CreateNodeMock(Guid.NewGuid(), "MockName", DispatcherMock.Instance);
-            await DispatcherMock.Instance.DispatchValue(driverMock, true);
+            await DispatcherMock.Instance.DispatchValue(driverMock, true, DispatchValueSource.Read);
 
             var values = DispatcherMock.Instance.GetValues(DispatchableType.NodeInstance);
 
@@ -74,7 +74,7 @@ namespace Automatica.Core.Tests.Dispatcher
                 ((DriverNodeMock)driverMock2.Children[0]).WriteValue(a, b);
             });
             await DispatcherMock.Instance.ClearRegistrations();
-            await DispatcherMock.Instance.DispatchValue(DispatchableMock.Instance, true);
+            await DispatcherMock.Instance.DispatchValue(DispatchableMock.Instance, true, DispatchValueSource.Read);
 
 
 

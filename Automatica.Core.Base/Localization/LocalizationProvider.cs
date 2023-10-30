@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
-using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -17,7 +16,7 @@ namespace Automatica.Core.Base.Localization
         private readonly List<Assembly> _loadedAssemblies = new List<Assembly>();
         private readonly ILogger _logger;
 
-        public LocalizationProvider(ILogger logger)
+        public LocalizationProvider(ILogger<LocalizationProvider> logger)
         {
             _logger = logger;
         }
